@@ -1,0 +1,3 @@
+#sprint=1
+#msg=feat(cv): Card 2 - Huan luyen mo hinh Object Detection va thiet lap thong so AI
+lib/core/ai_pipeline/ai_config.dart

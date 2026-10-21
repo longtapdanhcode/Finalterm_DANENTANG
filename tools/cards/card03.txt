@@ -1,0 +1,3 @@
+#sprint=1
+#msg=feat(cv): Card 3 - Luong tu hoa va xuat mo hinh TFLite on-device
+assets/models/object_detection.tflite

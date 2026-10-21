@@ -1,0 +1,10 @@
+#sprint=3
+#needs=4
+#msg=feat(db): Card 7 - Thiet lap Local Database voi Isar Plus offline-first
+lib/core/database/local_db_init.dart
+lib/core/database/local_db_init.g.dart
+lib/features/offline_audit/data/models/audit_record_model.dart
+lib/features/offline_audit/data/models/audit_record_model.g.dart
+lib/features/offline_audit/domain/repositories/audit_repository.dart
+lib/features/offline_audit/data/repositories/isar_audit_repository_impl.dart
+lib/features/offline_audit/data/repositories/isar_audit_repository_impl.g.dart

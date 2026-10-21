@@ -1,0 +1,3 @@
+#sprint=1
+#msg=feat(cv): Card 1 - Thu thap va chuan bi Dataset anh thiet bi (labels.txt)
+assets/models/labels.txt

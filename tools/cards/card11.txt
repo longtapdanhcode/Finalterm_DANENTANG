@@ -1,0 +1,5 @@
+#sprint=4
+#needs=4,7
+#msg=feat(report): Card 11 - Chuc nang xuat bao cao kiem ke PDF da trang chuan A4
+lib/core/utils/pdf_report_generator.dart
+test/core/utils/pdf_report_generator_test.dart

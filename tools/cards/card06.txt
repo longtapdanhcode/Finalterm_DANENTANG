@@ -1,0 +1,10 @@
+#sprint=2
+#needs=2,4,5
+#msg=feat(ai): Card 6 - Nhung TFLite va chay suy luan On-Device realtime
+lib/features/edge_vision/domain/repositories/vision_ai_repository.dart
+lib/features/edge_vision/data/repositories/tflite_vision_repository_impl.dart
+lib/features/edge_vision/data/repositories/tflite_vision_repository_impl.g.dart
+lib/features/edge_vision/presentation/controllers/scanner_controller.dart
+lib/features/edge_vision/presentation/controllers/scanner_controller.g.dart
+lib/features/edge_vision/presentation/screens/scanner_screen.dart
+test/features/edge_vision/vision_ai_repository_test.dart

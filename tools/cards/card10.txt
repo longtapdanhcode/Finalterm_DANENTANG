@@ -1,0 +1,14 @@
+#sprint=4
+#needs=4,7
+#msg=feat(cloud): Card 10 - Thiet lap Backend Supabase Core va Cloud Sync
+lib/core/network/supabase_config.dart
+lib/core/network/supabase_provider.dart
+lib/core/network/supabase_provider.g.dart
+lib/features/offline_audit/domain/repositories/sync_repository.dart
+lib/features/offline_audit/data/models/cloud_audit_record_model.dart
+lib/features/offline_audit/data/repositories/supabase_sync_repository_impl.dart
+lib/features/offline_audit/data/repositories/supabase_sync_repository_impl.g.dart
+lib/features/offline_audit/presentation/controllers/sync_controller.dart
+lib/features/offline_audit/presentation/controllers/sync_controller.g.dart
+test/features/offline_audit/cloud_audit_record_model_test.dart
+test/features/offline_audit/sync_controller_test.dart

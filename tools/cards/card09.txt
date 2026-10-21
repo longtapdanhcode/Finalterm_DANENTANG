@@ -1,0 +1,5 @@
+#sprint=3
+#needs=4
+#msg=feat(canvas): Card 9 - Tich hop Custom Canvas chu ky so va xuat PNG bytes
+lib/features/canvas_signature/presentation/screens/signature_screen.dart
+test/features/canvas_signature/signature_screen_test.dart

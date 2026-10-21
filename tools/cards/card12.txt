@@ -1,0 +1,7 @@
+#sprint=4
+#needs=4,7
+#msg=feat(ui): Card 12 - Toi uu UI Responsive cho phien ban Desktop va Tablet
+lib/core/utils/responsive_layout.dart
+lib/features/report_dashboard/presentation/screens/dashboard_screen.dart
+test/core/utils/responsive_layout_test.dart
+test/features/report_dashboard/dashboard_screen_test.dart

@@ -1,0 +1,6 @@
+#sprint=5
+#needs=7,8,10,11
+#msg=docs(audit): Hoan thien bao cao kiem toan, luan chung ky thuat va kiem thu e2e
+TECHNICAL_JUSTIFICATION.md
+PROJECT_AUDIT_REPORT.md
+test/e2e_pipeline_test.dart

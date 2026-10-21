@@ -1,0 +1,9 @@
+#sprint=2
+#needs=4
+#msg=feat(scanner): Card 5 - Tich hop luong Camera va Mobile Scanner ML Kit
+lib/features/edge_vision/domain/entities/scan_result.dart
+lib/features/edge_vision/domain/repositories/scanner_repository.dart
+lib/features/edge_vision/domain/usecases/process_scan_result_usecase.dart
+lib/features/edge_vision/data/repositories/scanner_repository_impl.dart
+lib/features/edge_vision/presentation/widgets/scanner_overlay.dart
+test/features/edge_vision/process_scan_result_usecase_test.dart
