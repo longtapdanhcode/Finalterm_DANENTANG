@@ -23,6 +23,9 @@ class AuditRecordModel {
   /// Nhãn do AI Edge nhận diện được (có thể null nếu chưa chạy AI).
   String? aiDetectedLabel;
 
+  /// Tên tài sản do kiểm kê viên nhập (ví dụ: "Động cơ điện Siemens 3 pha").
+  String? assetName;
+
   /// Số lượng sản phẩm kiểm kê.
   int quantity = 0;
 
@@ -40,6 +43,12 @@ class AuditRecordModel {
 
   /// Dữ liệu ảnh chữ ký số dưới dạng byte PNG.
   List<int>? signatureBytes;
+
+  /// Họ tên người ký xác nhận phiếu.
+  String? signerName;
+
+  /// Vai trò của người ký (ví dụ: "Kiểm kê viên").
+  String? signerRole;
 
   /// Thời điểm tạo bản ghi.
   DateTime? timestamp;

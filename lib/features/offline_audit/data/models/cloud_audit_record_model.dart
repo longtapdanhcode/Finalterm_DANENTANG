@@ -19,6 +19,9 @@ class CloudAuditRecordModel {
   /// Số lượng vật tư / thiết bị kiểm kê.
   final int quantity;
 
+  /// Tên tài sản do kiểm kê viên nhập.
+  final String? assetName;
+
   /// Khu vực kiểm kê.
   final String? area;
 
@@ -37,17 +40,26 @@ class CloudAuditRecordModel {
   /// Đường dẫn công khai hoặc signed URL của ảnh chữ ký lưu trên Supabase Storage bucket.
   final String? signatureUrl;
 
+  /// Họ tên người ký xác nhận.
+  final String? signerName;
+
+  /// Vai trò của người ký.
+  final String? signerRole;
+
   const CloudAuditRecordModel({
     required this.id,
     required this.scanCode,
     this.aiDetectedLabel,
     required this.quantity,
+    this.assetName,
     this.area,
     this.location,
     this.condition,
     this.notes,
     required this.timestamp,
     this.signatureUrl,
+    this.signerName,
+    this.signerRole,
   });
 
   /// Chuyển đổi từ Map / JSON trả về từ Supabase PostgREST
@@ -60,6 +72,7 @@ class CloudAuditRecordModel {
           json['ai_detected_label'] as String? ??
           json['aiDetectedLabel'] as String?,
       quantity: (json['quantity'] as num?)?.toInt() ?? 0,
+      assetName: json['asset_name'] as String?,
       area: json['area'] as String?,
       location: json['location'] as String?,
       condition: json['condition'] as String?,
@@ -67,6 +80,8 @@ class CloudAuditRecordModel {
       timestamp: json['timestamp'] as String? ?? '',
       signatureUrl:
           json['signature_url'] as String? ?? json['signatureUrl'] as String?,
+      signerName: json['signer_name'] as String?,
+      signerRole: json['signer_role'] as String?,
     );
   }
 
@@ -77,12 +92,15 @@ class CloudAuditRecordModel {
       'scan_code': scanCode,
       if (aiDetectedLabel != null) 'ai_detected_label': aiDetectedLabel,
       'quantity': quantity,
+      if (assetName != null) 'asset_name': assetName,
       if (area != null) 'area': area,
       if (location != null) 'location': location,
       if (condition != null) 'condition': condition,
       if (notes != null) 'notes': notes,
       'timestamp': timestamp,
       if (signatureUrl != null) 'signature_url': signatureUrl,
+      if (signerName != null) 'signer_name': signerName,
+      if (signerRole != null) 'signer_role': signerRole,
     };
   }
 
@@ -97,12 +115,15 @@ class CloudAuditRecordModel {
       scanCode: record.scanCode ?? '',
       aiDetectedLabel: record.aiDetectedLabel,
       quantity: record.quantity,
+      assetName: record.assetName,
       area: record.area,
       location: record.location,
       condition: record.condition,
       notes: record.notes,
       timestamp: (record.timestamp ?? DateTime.now()).toUtc().toIso8601String(),
       signatureUrl: signatureUrl,
+      signerName: record.signerName,
+      signerRole: record.signerRole,
     );
   }
 
@@ -120,30 +141,36 @@ class CloudAuditRecordModel {
     String? scanCode,
     String? aiDetectedLabel,
     int? quantity,
+    String? assetName,
     String? area,
     String? location,
     String? condition,
     String? notes,
     String? timestamp,
     String? signatureUrl,
+    String? signerName,
+    String? signerRole,
   }) {
     return CloudAuditRecordModel(
       id: id ?? this.id,
       scanCode: scanCode ?? this.scanCode,
       aiDetectedLabel: aiDetectedLabel ?? this.aiDetectedLabel,
       quantity: quantity ?? this.quantity,
+      assetName: assetName ?? this.assetName,
       area: area ?? this.area,
       location: location ?? this.location,
       condition: condition ?? this.condition,
       notes: notes ?? this.notes,
       timestamp: timestamp ?? this.timestamp,
       signatureUrl: signatureUrl ?? this.signatureUrl,
+      signerName: signerName ?? this.signerName,
+      signerRole: signerRole ?? this.signerRole,
     );
   }
 
   @override
   String toString() {
-    return 'CloudAuditRecordModel(id: $id, scanCode: $scanCode, aiDetectedLabel: $aiDetectedLabel, quantity: $quantity, area: $area, location: $location, condition: $condition, notes: $notes, timestamp: $timestamp, signatureUrl: $signatureUrl)';
+    return 'CloudAuditRecordModel(id: $id, scanCode: $scanCode, aiDetectedLabel: $aiDetectedLabel, quantity: $quantity, assetName: $assetName, area: $area, location: $location, condition: $condition, notes: $notes, timestamp: $timestamp, signatureUrl: $signatureUrl, signerName: $signerName, signerRole: $signerRole)';
   }
 
   @override
@@ -154,12 +181,15 @@ class CloudAuditRecordModel {
         other.scanCode == scanCode &&
         other.aiDetectedLabel == aiDetectedLabel &&
         other.quantity == quantity &&
+        other.assetName == assetName &&
         other.area == area &&
         other.location == location &&
         other.condition == condition &&
         other.notes == notes &&
         other.timestamp == timestamp &&
-        other.signatureUrl == signatureUrl;
+        other.signatureUrl == signatureUrl &&
+        other.signerName == signerName &&
+        other.signerRole == signerRole;
   }
 
   @override
@@ -169,12 +199,15 @@ class CloudAuditRecordModel {
       scanCode,
       aiDetectedLabel,
       quantity,
+      assetName,
       area,
       location,
       condition,
       notes,
       timestamp,
       signatureUrl,
+      signerName,
+      signerRole,
     );
   }
 }

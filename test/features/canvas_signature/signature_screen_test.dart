@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:signature/signature.dart';
 import 'package:field_inventory_edge_ai/core/widgets/fieldline_widgets.dart';
 import 'package:field_inventory_edge_ai/features/canvas_signature/presentation/screens/signature_screen.dart';
@@ -76,6 +77,59 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(Signature), findsOneWidget);
+    });
+
+    testWidgets('Returns signature bytes with signer name and role', (
+      tester,
+    ) async {
+      useDesktopView(tester);
+      SignatureResult? result;
+      final router = GoRouter(
+        routes: [
+          GoRoute(
+            path: '/',
+            builder: (context, state) => Scaffold(
+              body: TextButton(
+                onPressed: () async =>
+                    result = await context.push<SignatureResult>('/signature'),
+                child: const Text('open'),
+              ),
+            ),
+          ),
+          GoRoute(
+            path: '/signature',
+            builder: (context, state) =>
+                const Scaffold(body: SignatureScreen()),
+          ),
+        ],
+      );
+      await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+
+      // Vẽ một nét lên canvas và đổi tên người ký.
+      final canvas = find.byType(Signature);
+      await tester.ensureVisible(canvas);
+      await tester.drag(canvas, const Offset(120, 30));
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Hoàng An'),
+        'Nguyễn Minh Anh',
+      );
+      await tester.pump();
+
+      final confirm = find.text('Hoàn tất & lưu phiếu kiểm kê');
+      await tester.ensureVisible(confirm);
+      // Xuất PNG cần event loop thật nên chạy trong runAsync.
+      await tester.runAsync(() async {
+        await tester.tap(confirm);
+        await Future<void>.delayed(const Duration(milliseconds: 500));
+      });
+      await tester.pumpAndSettle();
+
+      expect(result, isNotNull);
+      expect(result!.bytes, isNotEmpty);
+      expect(result!.signerName, 'Nguyễn Minh Anh');
+      expect(result!.signerRole, 'Kiểm kê viên');
     });
   });
 }

@@ -96,14 +96,17 @@ class _AuditFormScreenState extends ConsumerState<AuditFormScreen> {
     FocusScope.of(context).unfocus();
     if (!_formKey.currentState!.validate()) return;
 
-    final bytes = await context.push<Uint8List?>('/signature', extra: _summary);
-    if (bytes != null && mounted) {
-      await _save(bytes);
+    final signed = await context.push<SignatureResult?>(
+      '/signature',
+      extra: _summary,
+    );
+    if (signed != null && mounted) {
+      await _save(signed);
     }
   }
 
-  /// Lưu bản ghi vào database (có hoặc không có chữ ký).
-  Future<void> _save(Uint8List? signatureBytes) async {
+  /// Lưu bản ghi vào database; [signed] là `null` khi lưu bản nháp chưa ký.
+  Future<void> _save(SignatureResult? signed) async {
     FocusScope.of(context).unfocus();
     if (!_formKey.currentState!.validate()) return;
 
@@ -111,12 +114,15 @@ class _AuditFormScreenState extends ConsumerState<AuditFormScreen> {
     final isSuccess = await controller.submitForm(
       scanCode: _scanCodeController.text,
       aiLabel: _aiLabelController.text,
+      assetName: _nameController.text,
       quantity: _quantity,
       area: _areaController.text,
       location: _locationController.text,
       condition: _condition.code,
       notes: _notesController.text,
-      signatureBytes: signatureBytes,
+      signatureBytes: signed?.bytes,
+      signerName: signed?.signerName,
+      signerRole: signed?.signerRole,
     );
 
     if (!mounted) return;
@@ -124,7 +130,7 @@ class _AuditFormScreenState extends ConsumerState<AuditFormScreen> {
     if (isSuccess) {
       showFlSnack(
         context,
-        signatureBytes == null
+        signed == null
             ? 'Đã lưu bản nháp trên thiết bị.'
             : 'Đã lưu phiếu kiểm kê trên thiết bị.',
         tone: FlTone.success,

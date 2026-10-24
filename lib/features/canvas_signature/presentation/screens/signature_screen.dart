@@ -36,10 +36,24 @@ class AuditSummary {
   String get displayName => name.isNotEmpty ? name : label;
 }
 
+/// Kết quả trả về từ màn ký: ảnh chữ ký PNG và người ký.
+class SignatureResult {
+  const SignatureResult({
+    required this.bytes,
+    required this.signerName,
+    required this.signerRole,
+  });
+
+  final Uint8List bytes;
+  final String signerName;
+  final String signerRole;
+}
+
 /// Màn hình Ký xác nhận kiểm kê (Figma 05 / M04).
 ///
 /// Cho phép người dùng ký xác nhận kiểm kê, sau đó xuất ra dữ liệu ảnh PNG
-/// dạng byte array [Uint8List] trả về màn hình lập phiếu để lưu cùng bản ghi.
+/// dạng byte array kèm họ tên, vai trò người ký ([SignatureResult]) trả về màn
+/// hình lập phiếu để lưu cùng bản ghi.
 class SignatureScreen extends StatefulWidget {
   const SignatureScreen({super.key, this.summary});
 
@@ -123,7 +137,13 @@ class _SignatureScreenState extends State<SignatureScreen> {
       if (!mounted) return;
 
       if (bytes != null && bytes.isNotEmpty) {
-        context.pop(bytes);
+        context.pop(
+          SignatureResult(
+            bytes: bytes,
+            signerName: _nameController.text.trim(),
+            signerRole: _roleController.text.trim(),
+          ),
+        );
       } else {
         showFlSnack(
           context,

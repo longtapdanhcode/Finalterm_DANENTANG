@@ -131,7 +131,7 @@ class PdfReportGenerator {
           final headers = [
             'STT',
             'Mã thiết bị',
-            'Kết quả AI',
+            'Tài sản',
             'Khu vực',
             'Tình trạng',
             'Số lượng',
@@ -151,7 +151,7 @@ class PdfReportGenerator {
             return [
               '${index + 1}',
               record.scanCode ?? '-',
-              record.aiDetectedLabel ?? 'Chưa nhận diện',
+              _assetCell(record),
               area.isEmpty ? '-' : area,
               AuditCondition.fromCode(record.condition)?.label ?? '-',
               '${record.quantity}',
@@ -215,6 +215,24 @@ class PdfReportGenerator {
                   vertical: 6,
                 ),
               ),
+              if (records.any((r) => r.signerName != null)) ...[
+                pw.SizedBox(height: 16),
+                pw.Text(
+                  'Người ký xác nhận',
+                  style: pw.TextStyle(font: boldFont, fontSize: 10),
+                ),
+                pw.SizedBox(height: 6),
+                for (final (index, record) in records.indexed)
+                  if (record.signerName != null)
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.only(bottom: 4),
+                      child: pw.Text(
+                        '${index + 1}. ${record.scanCode ?? '-'}: ${record.signerName}'
+                        '${record.signerRole != null ? ' (${record.signerRole})' : ''}',
+                        style: pw.TextStyle(font: font, fontSize: 9),
+                      ),
+                    ),
+              ],
               if (records.any((r) => r.notes != null)) ...[
                 pw.SizedBox(height: 16),
                 pw.Text(
@@ -264,5 +282,14 @@ class PdfReportGenerator {
     );
 
     return pdf.save();
+  }
+
+  /// Tên tài sản, kèm nhãn AI khi khác tên do kiểm kê viên nhập.
+  static String _assetCell(AuditRecordModel record) {
+    final name = record.assetName;
+    final ai = record.aiDetectedLabel;
+    if (name == null) return ai ?? 'Chưa nhận diện';
+    if (ai == null || ai == name) return name;
+    return '$name\n(AI: $ai)';
   }
 }

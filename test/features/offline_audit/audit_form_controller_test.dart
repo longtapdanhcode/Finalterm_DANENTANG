@@ -90,6 +90,9 @@ void main() {
         location: '   ',
         condition: 'check',
         notes: 'Vỏ động cơ trầy xước.',
+        assetName: ' Động cơ điện Siemens 3 pha ',
+        signerName: 'Nguyễn Minh Anh',
+        signerRole: '',
       );
 
       expect(result, isTrue);
@@ -98,6 +101,9 @@ void main() {
       expect(saved.location, isNull);
       expect(saved.condition, 'check');
       expect(saved.notes, 'Vỏ động cơ trầy xước.');
+      expect(saved.assetName, 'Động cơ điện Siemens 3 pha');
+      expect(saved.signerName, 'Nguyễn Minh Anh');
+      expect(saved.signerRole, isNull);
     });
 
     test('submitForm saves signatureBytes to AuditRecordModel', () async {

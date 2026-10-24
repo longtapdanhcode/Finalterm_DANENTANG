@@ -148,6 +148,9 @@ void main() {
       expect(record.location, isNull);
       expect(record.condition, 'check');
       expect(record.notes, 'Màn hình bị sọc');
+      // Tên tài sản được điền sẵn từ nhãn AI và lưu cùng phiếu.
+      expect(record.assetName, 'Monitor 27-inch');
+      expect(record.signerName, isNull);
     });
   });
 }
