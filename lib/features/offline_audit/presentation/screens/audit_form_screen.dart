@@ -376,7 +376,9 @@ class _AuditFormScreenState extends ConsumerState<AuditFormScreen> {
   }
 
   Widget _buildMobile(bool isSaving) {
-    final title = _aiLabelController.text.isNotEmpty
+    final title = _nameController.text.isNotEmpty
+        ? _nameController.text
+        : _aiLabelController.text.isNotEmpty
         ? _aiLabelController.text
         : 'Tài sản chưa nhận diện';
 
@@ -459,6 +461,13 @@ class _AuditFormScreenState extends ConsumerState<AuditFormScreen> {
             validator: (v) => _required(v, 'Vui lòng nhập loại thiết bị'),
           ),
         ],
+        const Gap(16),
+        _Field(
+          label: 'Tên tài sản',
+          controller: _nameController,
+          hint: 'Ví dụ: Động cơ điện Siemens 3 pha',
+          onChanged: (_) => setState(() {}),
+        ),
         const Gap(16),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -607,6 +616,8 @@ class _Field extends StatelessWidget {
           validator: validator,
           maxLines: maxLines,
           onChanged: onChanged,
+          // Phím Return chuyển sang ô kế tiếp thay vì đứng yên.
+          textInputAction: maxLines == 1 ? TextInputAction.next : null,
           style: const TextStyle(fontSize: 14),
           decoration: InputDecoration(
             hintText: hint,

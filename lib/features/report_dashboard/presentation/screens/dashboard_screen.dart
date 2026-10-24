@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
@@ -509,50 +510,54 @@ class MobileDashboard extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         // Header tối
-        Container(
-          color: FlColors.sidebar,
-          child: SafeArea(
-            bottom: false,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(24, 20, 22, 24),
-              child: Row(
-                children: [
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'FIELDLINE',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 22,
-                            fontWeight: FontWeight.w700,
+        AnnotatedRegion<SystemUiOverlayStyle>(
+          // Header tối: chữ và biểu tượng thanh trạng thái màu sáng.
+          value: SystemUiOverlayStyle.light,
+          child: Container(
+            color: FlColors.sidebar,
+            child: SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(24, 20, 22, 24),
+                child: Row(
+                  children: [
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'FIELDLINE',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 22,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
-                        ),
-                        Gap(8),
-                        Text(
-                          'Nhà máy Bình An  ·  Ca sáng',
-                          style: TextStyle(
-                            color: FlColors.sidebarText,
-                            fontSize: 13,
+                          Gap(8),
+                          Text(
+                            'Nhà máy Bình An  ·  Ca sáng',
+                            style: TextStyle(
+                              color: FlColors.sidebarText,
+                              fontSize: 13,
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const CircleAvatar(
-                    radius: 18,
-                    backgroundColor: FlColors.logoTile,
-                    child: Text(
-                      'HA',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
+                        ],
                       ),
                     ),
-                  ),
-                ],
+                    const CircleAvatar(
+                      radius: 18,
+                      backgroundColor: FlColors.logoTile,
+                      child: Text(
+                        'HA',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

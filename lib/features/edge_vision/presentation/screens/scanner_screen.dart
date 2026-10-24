@@ -84,34 +84,10 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
 
   /// Nhập mã tài sản bằng tay khi không quét được.
   Future<void> _enterCodeManually() async {
-    final controller = TextEditingController();
     final code = await showDialog<String>(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: FlColors.surface,
-        title: const Text(
-          'Nhập mã thủ công',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-        ),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: const InputDecoration(hintText: 'Ví dụ: TS-DC-0142'),
-          onSubmitted: (v) => Navigator.of(context).pop(v),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Huỷ'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(controller.text),
-            child: const Text('Lập phiếu'),
-          ),
-        ],
-      ),
+      builder: (context) => const _ManualCodeDialog(),
     );
-    controller.dispose();
     if (code != null && code.trim().isNotEmpty && mounted) {
       _navigateToAuditForm(code.trim(), null);
     }
@@ -162,6 +138,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
       controller: scannerRepo.controller,
       aiMode: _aiMode,
       showControls: !ResponsiveLayout.isDesktop(context),
+      onManualEntry: _enterCodeManually,
     );
 
     return ResponsiveLayout.isDesktop(context)
@@ -313,9 +290,13 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
         children: [
           StatusPill(label: 'AI On-Device', bold: true),
           Gap(10),
-          Text(
-            'Xử lý ngay trên thiết bị',
-            style: TextStyle(fontSize: 12, color: FlColors.muted),
+          Flexible(
+            child: Text(
+              'Xử lý ngay trên thiết bị',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 12, color: FlColors.muted),
+            ),
           ),
         ],
       ),
@@ -336,6 +317,55 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
   void _copyCode(String code) {
     Clipboard.setData(ClipboardData(text: code));
     showFlSnack(context, 'Đã sao chép mã vào bộ nhớ đệm!');
+  }
+}
+
+/// Hộp thoại nhập mã tài sản.
+///
+/// Tự giữ [TextEditingController] để controller chỉ bị huỷ khi hộp thoại đã
+/// rời cây widget, không phải ngay lúc `pop` (khi hiệu ứng đóng còn chạy).
+class _ManualCodeDialog extends StatefulWidget {
+  const _ManualCodeDialog();
+
+  @override
+  State<_ManualCodeDialog> createState() => _ManualCodeDialogState();
+}
+
+class _ManualCodeDialogState extends State<_ManualCodeDialog> {
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: FlColors.surface,
+      title: const Text(
+        'Nhập mã thủ công',
+        style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+      ),
+      content: TextField(
+        controller: _controller,
+        autofocus: true,
+        textCapitalization: TextCapitalization.characters,
+        decoration: const InputDecoration(hintText: 'Ví dụ: TS-DC-0142'),
+        onSubmitted: (v) => Navigator.of(context).pop(v),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Huỷ'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(_controller.text),
+          child: const Text('Lập phiếu'),
+        ),
+      ],
+    );
   }
 }
 
@@ -408,12 +438,14 @@ class _CameraBox extends ConsumerWidget {
     required this.controller,
     required this.aiMode,
     required this.showControls,
+    required this.onManualEntry,
   });
 
   final ScannerUiState uiState;
   final MobileScannerController controller;
   final bool aiMode;
   final bool showControls;
+  final VoidCallback onManualEntry;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -452,6 +484,10 @@ class _CameraBox extends ConsumerWidget {
               MobileScanner(
                 controller: controller,
                 fit: BoxFit.cover,
+                // ScannerController đã tự dừng/mở camera theo vòng đời app;
+                // để widget làm thêm lần nữa sẽ gọi start() hai lần sau hộp
+                // thoại xin quyền và báo "The scanner was already started".
+                useAppLifecycleState: false,
                 placeholderBuilder: (context) => const Center(
                   child: CircularProgressIndicator(
                     color: FlColors.cameraHighlight,
@@ -459,13 +495,15 @@ class _CameraBox extends ConsumerWidget {
                 ),
                 errorBuilder: (context, error) => _CameraMessage(
                   icon: Icons.error_outline,
-                  title: 'Lỗi camera',
-                  message:
-                      error.errorDetails?.message ?? error.errorCode.message,
+                  title: 'Không mở được camera',
+                  message: _cameraErrorText(error),
+                  actionLabel: 'Thử lại',
+                  onAction: notifier.resumeScanning,
+                  secondaryLabel: 'Nhập mã thủ công',
+                  onSecondary: onManualEntry,
                 ),
                 onDetect: notifier.onBarcodeScanned,
               ),
-              const ScannerOverlayWidget(boxSize: 240),
               const Positioned(
                 left: 18,
                 top: 16,
@@ -503,59 +541,72 @@ class _CameraBox extends ConsumerWidget {
                     ],
                   ),
                 ),
-              // Nhãn nhận diện ở giữa khung
-              Align(
-                alignment: const Alignment(0, 0.55),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 5,
-                  ),
-                  decoration: BoxDecoration(
-                    color: FlColors.cameraHighlight,
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text(
-                    guess != null && aiMode
-                        ? '${guess.label}${guess.confidence != null ? ' • ${guess.percent}' : ''}'
-                        : (aiMode ? 'QR · AI' : 'QR / mã vạch'),
-                    style: const TextStyle(
-                      color: Color(0xFF103E39),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ),
-              Positioned(
-                left: 18,
-                right: 18,
-                bottom: 16,
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        aiMode
-                            ? 'Đưa mã hoặc thiết bị vào khung'
-                            : 'Căn chỉnh mã QR / mã vạch trong khung',
-                        style: const TextStyle(
-                          color: Color(0xFFD5E6E6),
-                          fontSize: 12,
-                        ),
+              // Ẩn khung quét và nhãn khi camera lỗi để thông báo lỗi dễ đọc.
+              ValueListenableBuilder<MobileScannerState>(
+                valueListenable: controller,
+                builder: (context, camera, _) => camera.error != null
+                    ? const SizedBox.shrink()
+                    : Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          const ScannerOverlayWidget(boxSize: 240),
+                          // Nhãn nhận diện ở giữa khung
+                          Align(
+                            alignment: const Alignment(0, 0.55),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 5,
+                              ),
+                              decoration: BoxDecoration(
+                                color: FlColors.cameraHighlight,
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: Text(
+                                guess != null && aiMode
+                                    ? '${guess.label}${guess.confidence != null ? ' • ${guess.percent}' : ''}'
+                                    : (aiMode ? 'QR · AI' : 'QR / mã vạch'),
+                                style: const TextStyle(
+                                  color: Color(0xFF103E39),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ),
+                          Positioned(
+                            left: 18,
+                            right: 18,
+                            bottom: 16,
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    aiMode ? 'Đưa mã hoặc thiết bị vào khung' : 'Căn chỉnh mã QR / mã vạch trong khung',
+                                    style: const TextStyle(
+                                      color: Color(0xFFD5E6E6),
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ),
+                                const Icon(
+                                  Icons.circle,
+                                  size: 7,
+                                  color: FlColors.cameraHighlight,
+                                ),
+                                const Gap(6),
+                                const Text(
+                                  'AI',
+                                  style: TextStyle(
+                                    color: Color(0xFFB7DECF),
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                    const Icon(
-                      Icons.circle,
-                      size: 7,
-                      color: FlColors.cameraHighlight,
-                    ),
-                    const Gap(6),
-                    const Text(
-                      'AI',
-                      style: TextStyle(color: Color(0xFFB7DECF), fontSize: 11),
-                    ),
-                  ],
-                ),
               ),
               if (uiState.status == ScannerStatus.loadingModel ||
                   uiState.status == ScannerStatus.requestingPermission)
@@ -594,6 +645,8 @@ class _CameraMessage extends StatelessWidget {
     required this.message,
     this.actionLabel,
     this.onAction,
+    this.secondaryLabel,
+    this.onSecondary,
   });
 
   final IconData icon;
@@ -601,6 +654,8 @@ class _CameraMessage extends StatelessWidget {
   final String message;
   final String? actionLabel;
   final VoidCallback? onAction;
+  final String? secondaryLabel;
+  final VoidCallback? onSecondary;
 
   @override
   Widget build(BuildContext context) {
@@ -630,6 +685,16 @@ class _CameraMessage extends StatelessWidget {
             if (actionLabel != null) ...[
               const Gap(20),
               FilledButton(onPressed: onAction, child: Text(actionLabel!)),
+            ],
+            if (secondaryLabel != null) ...[
+              const Gap(4),
+              TextButton(
+                onPressed: onSecondary,
+                style: TextButton.styleFrom(
+                  foregroundColor: FlColors.cameraHighlight,
+                ),
+                child: Text(secondaryLabel!),
+              ),
             ],
           ],
         ),
@@ -841,6 +906,27 @@ class _MobileResultCard extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Thông báo lỗi camera dễ hiểu bằng tiếng Việt thay cho thông điệp của plugin.
+String _cameraErrorText(MobileScannerException error) {
+  final details = error.errorDetails?.message ?? '';
+  if (details.toLowerCase().contains('no camera')) {
+    return 'Thiết bị này không có camera. Bạn có thể nhập mã thủ công.';
+  }
+  return switch (error.errorCode) {
+    MobileScannerErrorCode.permissionDenied =>
+      'Ứng dụng chưa được cấp quyền camera. Hãy bật trong Cài đặt.',
+    MobileScannerErrorCode.unsupported =>
+      'Thiết bị không hỗ trợ quét bằng camera. Bạn có thể nhập mã thủ công.',
+    MobileScannerErrorCode.controllerAlreadyInitialized ||
+    MobileScannerErrorCode.controllerInitializing =>
+      'Camera đang được khởi động. Vui lòng thử lại.',
+    _ =>
+      details.isNotEmpty
+          ? 'Camera gặp lỗi: $details'
+          : 'Camera gặp lỗi không xác định. Vui lòng thử lại.',
+  };
 }
 
 String _typeLabel(ScanCodeType type) => switch (type) {

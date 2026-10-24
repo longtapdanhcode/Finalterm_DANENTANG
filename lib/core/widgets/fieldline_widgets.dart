@@ -499,9 +499,16 @@ class MobilePage extends StatelessWidget {
               child: belowTitle!,
             ),
           Expanded(
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(24, 18, 24, 24),
-              children: children,
+            // Chạm ra ngoài hoặc cuộn để đóng bàn phím.
+            child: GestureDetector(
+              behavior: HitTestBehavior.translucent,
+              onTap: () => FocusScope.of(context).unfocus(),
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(24, 18, 24, 24),
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
+                children: children,
+              ),
             ),
           ),
           if (bottomAction != null)
