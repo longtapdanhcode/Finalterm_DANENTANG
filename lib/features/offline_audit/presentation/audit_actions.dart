@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:printing/printing.dart';
 
+import 'package:field_inventory_edge_ai/core/network/connectivity_provider.dart';
 import 'package:field_inventory_edge_ai/core/widgets/fieldline_widgets.dart';
 import 'package:field_inventory_edge_ai/features/offline_audit/data/repositories/isar_audit_repository_impl.dart';
 import 'package:field_inventory_edge_ai/features/offline_audit/presentation/controllers/sync_controller.dart';
@@ -10,6 +11,16 @@ import 'package:field_inventory_edge_ai/features/offline_audit/presentation/cont
 Future<void> triggerSync(BuildContext context, WidgetRef ref) async {
   final syncState = ref.read(syncControllerProvider);
   if (syncState.isLoading) return;
+
+  // Không thử gọi Supabase khi thiết bị không có mạng; phiếu vẫn nằm trên máy.
+  if (ref.read(isOnlineProvider).value == false) {
+    showFlSnack(
+      context,
+      'Thiết bị đang ngoại tuyến. Phiếu vẫn được lưu trên máy và sẽ đồng bộ khi có mạng.',
+      tone: FlTone.warning,
+    );
+    return;
+  }
 
   try {
     final count = await ref.read(syncControllerProvider.notifier).syncAll();

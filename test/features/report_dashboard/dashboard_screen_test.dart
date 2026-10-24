@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:field_inventory_edge_ai/core/network/connectivity_provider.dart';
 import 'package:field_inventory_edge_ai/features/offline_audit/data/models/audit_record_model.dart';
 import 'package:field_inventory_edge_ai/features/offline_audit/data/repositories/isar_audit_repository_impl.dart';
 import 'package:field_inventory_edge_ai/features/offline_audit/data/repositories/supabase_sync_repository_impl.dart';
@@ -63,6 +64,7 @@ void main() {
       WidgetTester tester,
       Widget screen, {
       Size screenSize = const Size(400, 800),
+      bool online = true,
     }) async {
       tester.view.physicalSize = screenSize;
       tester.view.devicePixelRatio = 1;
@@ -77,6 +79,7 @@ void main() {
             auditRecordsProvider.overrideWith(
               (ref) => Stream.value(mockRepo.records),
             ),
+            isOnlineProvider.overrideWith((ref) => Stream.value(online)),
           ],
           child: MaterialApp(home: Scaffold(body: screen)),
         ),
@@ -143,6 +146,40 @@ void main() {
 
       expect(mockSyncRepo.syncCalled, isTrue);
       expect(find.text('Đã đồng bộ 1 phiếu lên đám mây.'), findsOneWidget);
+    });
+
+    testWidgets('Offline: sync is skipped and user is told why', (
+      tester,
+    ) async {
+      mockRepo.records = [
+        AuditRecordModel(1)
+          ..scanCode = 'OFF-01'
+          ..quantity = 1
+          ..isSynced = false,
+      ];
+
+      await pumpScreen(
+        tester,
+        const SyncScreen(),
+        screenSize: const Size(1440, 1000),
+        online: false,
+      );
+
+      expect(
+        find.textContaining('Thiết bị đang ngoại tuyến • 1 phiếu'),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.text('Đồng bộ ngay'));
+      await tester.pumpAndSettle();
+
+      expect(mockSyncRepo.syncCalled, isFalse);
+      expect(
+        find.text(
+          'Thiết bị đang ngoại tuyến. Phiếu vẫn được lưu trên máy và sẽ đồng bộ khi có mạng.',
+        ),
+        findsOneWidget,
+      );
     });
 
     testWidgets('Reports screen exports PDF', (tester) async {

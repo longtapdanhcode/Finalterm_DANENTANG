@@ -10,6 +10,8 @@ import 'package:field_inventory_edge_ai/features/offline_audit/data/models/audit
 import 'package:field_inventory_edge_ai/features/report_dashboard/presentation/screens/dashboard_screen.dart'
     show auditCode;
 
+import 'package:field_inventory_edge_ai/core/network/connectivity_provider.dart';
+
 import '../audit_actions.dart';
 import '../controllers/audit_records_provider.dart';
 import '../controllers/sync_controller.dart';
@@ -31,18 +33,20 @@ class _SyncScreenState extends ConsumerState<SyncScreen> {
   Widget build(BuildContext context) {
     final records = ref.watch(auditRecordsProvider).value ?? const [];
     final syncState = ref.watch(syncControllerProvider);
+    final online = ref.watch(isOnlineProvider).value ?? true;
     final pending = records.where((r) => !r.isSynced).toList();
     final synced = records.where((r) => r.isSynced).toList();
 
     return ResponsiveLayout.isDesktop(context)
-        ? _buildDesktop(pending, synced, syncState)
-        : _buildMobile(pending, syncState);
+        ? _buildDesktop(pending, synced, syncState, online)
+        : _buildMobile(pending, syncState, online);
   }
 
   Widget _buildDesktop(
     List<AuditRecordModel> pending,
     List<AuditRecordModel> synced,
     AsyncValue<void> syncState,
+    bool online,
   ) {
     final failed = syncState.hasError ? pending.length : 0;
     final rows = _showHistory ? synced : pending;
@@ -281,9 +285,13 @@ class _SyncScreenState extends ConsumerState<SyncScreen> {
       children: [
         InfoBanner(
           title: 'Dữ liệu đã được lưu an toàn trên thiết bị',
-          subtitle: pending.isEmpty
-              ? 'Tất cả phiếu đã có trên đám mây.'
-              : '${pending.length} phiếu sẽ được tải lên khi đồng bộ.',
+          tone: online ? FlTone.success : FlTone.warning,
+          icon: online ? Icons.check_rounded : Icons.cloud_off_rounded,
+          subtitle: !online
+              ? 'Thiết bị đang ngoại tuyến • ${pending.length} phiếu sẽ được tải lên khi có mạng.'
+              : pending.isEmpty
+              ? 'Có kết nối Internet • Tất cả phiếu đã có trên đám mây.'
+              : 'Có kết nối Internet • ${pending.length} phiếu sẽ được tải lên khi đồng bộ.',
         ),
         const Gap(24),
         FlGrid(
@@ -325,6 +333,7 @@ class _SyncScreenState extends ConsumerState<SyncScreen> {
   Widget _buildMobile(
     List<AuditRecordModel> pending,
     AsyncValue<void> syncState,
+    bool online,
   ) {
     final latest = pending.isEmpty ? null : pending.first.timestamp;
 
@@ -373,13 +382,15 @@ class _SyncScreenState extends ConsumerState<SyncScreen> {
                   Padding(
                     padding: const EdgeInsets.only(left: 12),
                     child: InfoBanner(
-                      icon: syncState.hasError
+                      icon: syncState.hasError || !online
                           ? Icons.cloud_off_rounded
                           : Icons.circle,
-                      tone: syncState.hasError || pending.isNotEmpty
+                      tone: syncState.hasError || !online || pending.isNotEmpty
                           ? FlTone.warning
                           : FlTone.success,
-                      title: syncState.hasError
+                      title: !online
+                          ? 'Thiết bị đang ngoại tuyến'
+                          : syncState.hasError
                           ? 'Chưa kết nối được máy chủ'
                           : pending.isEmpty
                           ? 'Mọi phiếu đã được đồng bộ'

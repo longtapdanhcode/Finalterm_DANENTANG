@@ -4,6 +4,7 @@ import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/offline_audit/presentation/controllers/audit_records_provider.dart';
+import '../network/connectivity_provider.dart';
 import '../theme/fieldline_theme.dart';
 import '../utils/responsive_layout.dart';
 import 'fieldline_widgets.dart';
@@ -393,13 +394,15 @@ class _SidebarTile extends StatelessWidget {
   }
 }
 
-class _TopBar extends StatelessWidget {
+class _TopBar extends ConsumerWidget {
   const _TopBar({required this.location});
 
   final String location;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Chưa đọc được trạng thái mạng (hoặc nền tảng không hỗ trợ) thì coi như có mạng.
+    final online = ref.watch(isOnlineProvider).value ?? true;
     final title =
         _pageTitles.entries
             .where((e) => location.startsWith(e.key))
@@ -466,15 +469,18 @@ class _TopBar extends StatelessWidget {
           Container(
             width: 7,
             height: 7,
-            decoration: const BoxDecoration(
-              color: FlColors.online,
+            decoration: BoxDecoration(
+              color: online ? FlColors.online : FlColors.warningStrong,
               shape: BoxShape.circle,
             ),
           ),
           const Gap(8),
-          const Text(
-            'Đã kết nối',
-            style: TextStyle(fontSize: 11, color: FlColors.primary),
+          Text(
+            online ? 'Đã kết nối' : 'Ngoại tuyến',
+            style: TextStyle(
+              fontSize: 11,
+              color: online ? FlColors.primary : FlColors.warning,
+            ),
           ),
           const Gap(40),
           Stack(
