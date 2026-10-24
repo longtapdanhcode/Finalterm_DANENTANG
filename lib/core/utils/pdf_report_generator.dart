@@ -1,10 +1,12 @@
 import 'dart:typed_data';
+
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
 import '../../features/offline_audit/data/models/audit_record_model.dart';
+import '../../features/offline_audit/domain/entities/audit_condition.dart';
 
 /// Tiện ích hỗ trợ tạo tệp PDF báo cáo kiểm kê hiện trường.
 class PdfReportGenerator {
@@ -28,10 +30,7 @@ class PdfReportGenerator {
       boldFont = pw.Font.helveticaBold();
     }
 
-    final theme = pw.ThemeData.withFont(
-      base: font,
-      bold: boldFont,
-    );
+    final theme = pw.ThemeData.withFont(base: font, bold: boldFont);
 
     final dateFormat = DateFormat('dd/MM/yyyy HH:mm');
     final generatedAt = dateFormat.format(DateTime.now());
@@ -133,12 +132,18 @@ class PdfReportGenerator {
             'STT',
             'Mã thiết bị',
             'Kết quả AI',
+            'Khu vực',
+            'Tình trạng',
             'Số lượng',
             'Thời gian',
           ];
 
           final data = List.generate(records.length, (index) {
             final record = records[index];
+            final area = [
+              record.area,
+              record.location,
+            ].whereType<String>().join(' • ');
             final timeStr = record.timestamp != null
                 ? dateFormat.format(record.timestamp!)
                 : '-';
@@ -147,6 +152,8 @@ class PdfReportGenerator {
               '${index + 1}',
               record.scanCode ?? '-',
               record.aiDetectedLabel ?? 'Chưa nhận diện',
+              area.isEmpty ? '-' : area,
+              AuditCondition.fromCode(record.condition)?.label ?? '-',
               '${record.quantity}',
               timeStr,
             ];
@@ -183,30 +190,48 @@ class PdfReportGenerator {
                 headerDecoration: const pw.BoxDecoration(
                   color: PdfColors.blue800,
                 ),
-                cellStyle: pw.TextStyle(
-                  font: font,
-                  fontSize: 9,
-                ),
+                cellStyle: pw.TextStyle(font: font, fontSize: 9),
                 cellAlignment: pw.Alignment.centerLeft,
                 cellAlignments: {
                   0: pw.Alignment.center,
                   1: pw.Alignment.centerLeft,
                   2: pw.Alignment.centerLeft,
-                  3: pw.Alignment.center,
-                  4: pw.Alignment.center,
+                  3: pw.Alignment.centerLeft,
+                  4: pw.Alignment.centerLeft,
+                  5: pw.Alignment.center,
+                  6: pw.Alignment.center,
                 },
                 headerAlignments: {
                   0: pw.Alignment.center,
                   1: pw.Alignment.centerLeft,
                   2: pw.Alignment.centerLeft,
-                  3: pw.Alignment.center,
-                  4: pw.Alignment.center,
+                  3: pw.Alignment.centerLeft,
+                  4: pw.Alignment.centerLeft,
+                  5: pw.Alignment.center,
+                  6: pw.Alignment.center,
                 },
                 cellPadding: const pw.EdgeInsets.symmetric(
                   horizontal: 6,
                   vertical: 6,
                 ),
               ),
+              if (records.any((r) => r.notes != null)) ...[
+                pw.SizedBox(height: 16),
+                pw.Text(
+                  'Ghi chú hiện trường',
+                  style: pw.TextStyle(font: boldFont, fontSize: 10),
+                ),
+                pw.SizedBox(height: 6),
+                for (final (index, record) in records.indexed)
+                  if (record.notes != null)
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.only(bottom: 4),
+                      child: pw.Text(
+                        '${index + 1}. ${record.scanCode ?? '-'}: ${record.notes}',
+                        style: pw.TextStyle(font: font, fontSize: 9),
+                      ),
+                    ),
+              ],
               pw.SizedBox(height: 16),
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.end,

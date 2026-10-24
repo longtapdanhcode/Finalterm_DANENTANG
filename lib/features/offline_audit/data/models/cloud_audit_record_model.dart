@@ -19,6 +19,18 @@ class CloudAuditRecordModel {
   /// Số lượng vật tư / thiết bị kiểm kê.
   final int quantity;
 
+  /// Khu vực kiểm kê.
+  final String? area;
+
+  /// Vị trí cụ thể trong khu vực.
+  final String? location;
+
+  /// Mã tình trạng thực tế (`good`, `check`, `damaged`).
+  final String? condition;
+
+  /// Ghi chú hiện trường.
+  final String? notes;
+
   /// Thời điểm tạo bản ghi theo định dạng chuẩn ISO-8601 UTC.
   final String timestamp;
 
@@ -30,6 +42,10 @@ class CloudAuditRecordModel {
     required this.scanCode,
     this.aiDetectedLabel,
     required this.quantity,
+    this.area,
+    this.location,
+    this.condition,
+    this.notes,
     required this.timestamp,
     this.signatureUrl,
   });
@@ -40,12 +56,17 @@ class CloudAuditRecordModel {
       id: json['id'] as String? ?? '',
       scanCode:
           json['scan_code'] as String? ?? json['scanCode'] as String? ?? '',
-      aiDetectedLabel: json['ai_detected_label'] as String? ??
+      aiDetectedLabel:
+          json['ai_detected_label'] as String? ??
           json['aiDetectedLabel'] as String?,
       quantity: (json['quantity'] as num?)?.toInt() ?? 0,
+      area: json['area'] as String?,
+      location: json['location'] as String?,
+      condition: json['condition'] as String?,
+      notes: json['notes'] as String?,
       timestamp: json['timestamp'] as String? ?? '',
-      signatureUrl: json['signature_url'] as String? ??
-          json['signatureUrl'] as String?,
+      signatureUrl:
+          json['signature_url'] as String? ?? json['signatureUrl'] as String?,
     );
   }
 
@@ -56,6 +77,10 @@ class CloudAuditRecordModel {
       'scan_code': scanCode,
       if (aiDetectedLabel != null) 'ai_detected_label': aiDetectedLabel,
       'quantity': quantity,
+      if (area != null) 'area': area,
+      if (location != null) 'location': location,
+      if (condition != null) 'condition': condition,
+      if (notes != null) 'notes': notes,
       'timestamp': timestamp,
       if (signatureUrl != null) 'signature_url': signatureUrl,
     };
@@ -72,8 +97,11 @@ class CloudAuditRecordModel {
       scanCode: record.scanCode ?? '',
       aiDetectedLabel: record.aiDetectedLabel,
       quantity: record.quantity,
-      timestamp:
-          (record.timestamp ?? DateTime.now()).toUtc().toIso8601String(),
+      area: record.area,
+      location: record.location,
+      condition: record.condition,
+      notes: record.notes,
+      timestamp: (record.timestamp ?? DateTime.now()).toUtc().toIso8601String(),
       signatureUrl: signatureUrl,
     );
   }
@@ -92,6 +120,10 @@ class CloudAuditRecordModel {
     String? scanCode,
     String? aiDetectedLabel,
     int? quantity,
+    String? area,
+    String? location,
+    String? condition,
+    String? notes,
     String? timestamp,
     String? signatureUrl,
   }) {
@@ -100,6 +132,10 @@ class CloudAuditRecordModel {
       scanCode: scanCode ?? this.scanCode,
       aiDetectedLabel: aiDetectedLabel ?? this.aiDetectedLabel,
       quantity: quantity ?? this.quantity,
+      area: area ?? this.area,
+      location: location ?? this.location,
+      condition: condition ?? this.condition,
+      notes: notes ?? this.notes,
       timestamp: timestamp ?? this.timestamp,
       signatureUrl: signatureUrl ?? this.signatureUrl,
     );
@@ -107,7 +143,7 @@ class CloudAuditRecordModel {
 
   @override
   String toString() {
-    return 'CloudAuditRecordModel(id: $id, scanCode: $scanCode, aiDetectedLabel: $aiDetectedLabel, quantity: $quantity, timestamp: $timestamp, signatureUrl: $signatureUrl)';
+    return 'CloudAuditRecordModel(id: $id, scanCode: $scanCode, aiDetectedLabel: $aiDetectedLabel, quantity: $quantity, area: $area, location: $location, condition: $condition, notes: $notes, timestamp: $timestamp, signatureUrl: $signatureUrl)';
   }
 
   @override
@@ -118,6 +154,10 @@ class CloudAuditRecordModel {
         other.scanCode == scanCode &&
         other.aiDetectedLabel == aiDetectedLabel &&
         other.quantity == quantity &&
+        other.area == area &&
+        other.location == location &&
+        other.condition == condition &&
+        other.notes == notes &&
         other.timestamp == timestamp &&
         other.signatureUrl == signatureUrl;
   }
@@ -129,6 +169,10 @@ class CloudAuditRecordModel {
       scanCode,
       aiDetectedLabel,
       quantity,
+      area,
+      location,
+      condition,
+      notes,
       timestamp,
       signatureUrl,
     );

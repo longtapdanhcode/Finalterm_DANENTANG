@@ -1,4 +1,5 @@
 import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:field_inventory_edge_ai/core/utils/pdf_report_generator.dart';
 import 'package:field_inventory_edge_ai/features/offline_audit/data/models/audit_record_model.dart';
@@ -7,14 +8,17 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('PdfReportGenerator Tests', () {
-    test('generateAuditReport produces valid PDF bytes for empty records list', () async {
-      final bytes = await PdfReportGenerator.generateAuditReport([]);
+    test(
+      'generateAuditReport produces valid PDF bytes for empty records list',
+      () async {
+        final bytes = await PdfReportGenerator.generateAuditReport([]);
 
-      expect(bytes, isNotEmpty);
-      // Valid PDF document starts with '%PDF-'
-      final header = ascii.decode(bytes.sublist(0, 5));
-      expect(header, '%PDF-');
-    });
+        expect(bytes, isNotEmpty);
+        // Valid PDF document starts with '%PDF-'
+        final header = ascii.decode(bytes.sublist(0, 5));
+        expect(header, '%PDF-');
+      },
+    );
 
     test('generateAuditReport produces valid PDF bytes with populated audit records', () async {
       final records = [

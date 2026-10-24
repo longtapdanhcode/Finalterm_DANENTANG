@@ -7,12 +7,7 @@ import '../../data/repositories/isar_audit_repository_impl.dart';
 part 'audit_form_controller.g.dart';
 
 /// Trạng thái của biểu mẫu kiểm kê động.
-enum AuditFormStatus {
-  initial,
-  saving,
-  success,
-  error,
-}
+enum AuditFormStatus { initial, saving, success, error }
 
 /// State object chứa thông tin trạng thái form và thông báo lỗi (nếu có).
 class AuditFormState {
@@ -28,10 +23,7 @@ class AuditFormState {
   bool get isSuccess => status == AuditFormStatus.success;
   bool get hasError => status == AuditFormStatus.error;
 
-  AuditFormState copyWith({
-    AuditFormStatus? status,
-    String? errorMessage,
-  }) {
+  AuditFormState copyWith({AuditFormStatus? status, String? errorMessage}) {
     return AuditFormState(
       status: status ?? this.status,
       errorMessage: errorMessage,
@@ -57,12 +49,13 @@ class AuditFormController extends _$AuditFormController {
     required String scanCode,
     String? aiLabel,
     required int quantity,
+    String? area,
+    String? location,
+    String? condition,
+    String? notes,
     List<int>? signatureBytes,
   }) async {
-    state = state.copyWith(
-      status: AuditFormStatus.saving,
-      errorMessage: null,
-    );
+    state = state.copyWith(status: AuditFormStatus.saving, errorMessage: null);
 
     try {
       final repository = ref.read(isarAuditRepositoryProvider);
@@ -73,6 +66,10 @@ class AuditFormController extends _$AuditFormController {
             ? aiLabel.trim()
             : null
         ..quantity = quantity
+        ..area = _clean(area)
+        ..location = _clean(location)
+        ..condition = _clean(condition)
+        ..notes = _clean(notes)
         ..signatureBytes = signatureBytes
         ..timestamp = DateTime.now()
         ..isSynced = false;
@@ -91,6 +88,12 @@ class AuditFormController extends _$AuditFormController {
       );
       return false;
     }
+  }
+
+  /// Chuỗi rỗng hoặc toàn khoảng trắng được lưu là `null`.
+  static String? _clean(String? value) {
+    final trimmed = value?.trim();
+    return (trimmed == null || trimmed.isEmpty) ? null : trimmed;
   }
 
   /// Đặt lại trạng thái ban đầu của form.

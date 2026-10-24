@@ -83,8 +83,7 @@ class ScannerController extends _$ScannerController {
   }
 
   ScannerRepository get _repository => ref.read(scannerRepositoryProvider);
-  VisionAiRepository get _visionAiRepo =>
-      ref.read(visionAiRepositoryProvider);
+  VisionAiRepository get _visionAiRepo => ref.read(visionAiRepositoryProvider);
   ProcessScanResultUseCase get _processUseCase =>
       ref.read(processScanResultUseCaseProvider);
 
@@ -106,8 +105,7 @@ class ScannerController extends _$ScannerController {
     } else if (status.isPermanentlyDenied) {
       state = state.copyWith(
         status: ScannerStatus.permissionPermanentlyDenied,
-        errorMessage:
-            'Quyền truy cập Camera đã bị từ chối vĩnh viễn. Vui lòng mở Cài đặt để cấp quyền.',
+        errorMessage: 'Quyền truy cập Camera đã bị từ chối vĩnh viễn. Vui lòng mở Cài đặt để cấp quyền.',
       );
     } else {
       await requestPermission();
@@ -124,14 +122,12 @@ class ScannerController extends _$ScannerController {
     } else if (status.isPermanentlyDenied) {
       state = state.copyWith(
         status: ScannerStatus.permissionPermanentlyDenied,
-        errorMessage:
-            'Quyền Camera bị từ chối vĩnh viễn. Vui lòng cấp quyền trong Cài đặt thiết bị.',
+        errorMessage: 'Quyền Camera bị từ chối vĩnh viễn. Vui lòng cấp quyền trong Cài đặt thiết bị.',
       );
     } else {
       state = state.copyWith(
         status: ScannerStatus.permissionDenied,
-        errorMessage:
-            'Ứng dụng cần quyền Camera để quét mã tài sản & kiểm kê hiện trường.',
+        errorMessage: 'Ứng dụng cần quyền Camera để quét mã tài sản & kiểm kê hiện trường.',
       );
     }
   }
@@ -253,10 +249,7 @@ class ScannerController extends _$ScannerController {
 
   /// Tiếp tục quét mã tiếp theo
   Future<void> resumeScanning() async {
-    state = state.copyWith(
-      latestResult: null,
-      errorMessage: null,
-    );
+    state = state.copyWith(latestResult: null, errorMessage: null);
     await startCamera();
   }
 
