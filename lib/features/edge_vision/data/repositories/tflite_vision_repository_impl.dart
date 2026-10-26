@@ -74,47 +74,76 @@ class TfliteVisionRepositoryImpl implements VisionAiRepository {
         return const [];
       }
 
-      // Resize hình ảnh về kích thước chuẩn của input tensor
-      final img.Image resized = img.copyResize(
-        decoded,
-        width: AiConfig.inputSize,
-        height: AiConfig.inputSize,
-      );
-
-      // Chuẩn hóa tensor ảnh (ví dụ 1 x 224 x 224 x 3 Float32)
-      final input = List.generate(
-        1,
-        (_) => List.generate(
-          AiConfig.inputSize,
-          (y) => List.generate(AiConfig.inputSize, (x) {
-            final pixel = resized.getPixel(x, y);
-            return [pixel.r / 255.0, pixel.g / 255.0, pixel.b / 255.0];
-          }),
-        ),
-      );
-
-      // Chuẩn bị output buffer
-      final outputLength = _labels.isNotEmpty ? _labels.length : 10;
-      final output = [List<double>.filled(outputLength, 0.0)];
+      final input = _toInputTensor(decoded);
+      final classCount = _labels.length;
+      final channels = 4 + classCount;
+      final output = [
+        List.generate(channels, (_) => List<double>.filled(_anchorCount, 0.0)),
+      ];
 
       // Chạy inference
       _interpreter!.run(input, output);
 
-      // Trích xuất kết quả nhận diện vượt ngưỡng confidenceThreshold
-      final results = <String>[];
-      final scores = output[0];
-      for (int i = 0; i < scores.length; i++) {
-        if (scores[i] >= AiConfig.confidenceThreshold) {
-          final label = _labels.length > i ? _labels[i] : 'Object #$i';
-          results.add('$label (${(scores[i] * 100).toStringAsFixed(1)}%)');
-        }
-      }
-
-      return results;
+      return decodeDetections(output[0], _labels);
     } catch (e) {
       debugPrint('[VisionAI] analyzeFrame error: $e');
       return const [];
     }
+  }
+
+  /// Số ô dự đoán của YOLO ở đầu vào 640x640.
+  static const int _anchorCount = 8400;
+
+  /// Letterbox ảnh về vuông (nền xám 114 như lúc huấn luyện) rồi chuyển sang
+  /// tensor float32 dạng NCHW, giá trị 0..1.
+  Object _toInputTensor(img.Image source) {
+    const size = AiConfig.inputSize;
+    final scale =
+        size / (source.width > source.height ? source.width : source.height);
+    final w = (source.width * scale).round().clamp(1, size);
+    final h = (source.height * scale).round().clamp(1, size);
+    final resized = img.copyResize(source, width: w, height: h);
+    final dx = (size - w) ~/ 2;
+    final dy = (size - h) ~/ 2;
+
+    const plane = size * size;
+    final data = Float32List(3 * plane)..fillRange(0, 3 * plane, 114 / 255.0);
+    for (var y = 0; y < h; y++) {
+      for (var x = 0; x < w; x++) {
+        final pixel = resized.getPixel(x, y);
+        final i = (y + dy) * size + (x + dx);
+        data[i] = pixel.r / 255.0;
+        data[plane + i] = pixel.g / 255.0;
+        data[2 * plane + i] = pixel.b / 255.0;
+      }
+    }
+    return data.reshape([1, 3, size, size]);
+  }
+
+  /// Chọn kết quả từ đầu ra YOLO [channels][anchors]: mỗi nhãn lấy điểm cao
+  /// nhất, bỏ qua nếu thấp hơn ngưỡng của nhóm, sắp xếp giảm dần theo điểm.
+  @visibleForTesting
+  static List<String> decodeDetections(
+    List<List<double>> output,
+    List<String> labels,
+  ) {
+    final best = <int, double>{};
+    for (var c = 0; c < labels.length && 4 + c < output.length; c++) {
+      final threshold = AiConfig.defectClassIndexes.contains(c)
+          ? AiConfig.defectConfidenceThreshold
+          : AiConfig.confidenceThreshold;
+      var top = 0.0;
+      for (final score in output[4 + c]) {
+        if (score > top) top = score;
+      }
+      if (top >= threshold) best[c] = top;
+    }
+    final order = best.keys.toList()
+      ..sort((a, b) => best[b]!.compareTo(best[a]!));
+    return [
+      for (final c in order)
+        '${labels[c]} (${(best[c]! * 100).toStringAsFixed(1)}%)',
+    ];
   }
 
   @override
