@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../features/asset_catalog/presentation/screens/asset_editor_screen.dart';
 import '../../features/asset_catalog/presentation/screens/assets_screen.dart';
 import '../../features/canvas_signature/presentation/screens/signature_screen.dart';
 import '../../features/edge_vision/presentation/screens/scanner_screen.dart';
@@ -36,6 +37,19 @@ GoRouter goRouter(Ref ref) {
             path: '/assets',
             name: 'assets',
             pageBuilder: (context, state) => _tab(state, const AssetsScreen()),
+            routes: [
+              GoRoute(
+                path: 'new',
+                name: 'asset-new',
+                builder: (context, state) => const AssetEditorScreen(),
+              ),
+              GoRoute(
+                path: ':code',
+                name: 'asset-edit',
+                builder: (context, state) =>
+                    AssetEditorScreen(code: state.pathParameters['code']),
+              ),
+            ],
           ),
           GoRoute(
             path: '/scanner',

@@ -16,6 +16,9 @@ abstract class AssetCatalogRepository {
   /// Toàn bộ danh mục trên máy, phát lại mỗi khi dữ liệu thay đổi.
   Stream<List<AssetModel>> watchAll();
 
+  /// Tài sản có mã [code] trên máy, hoặc `null` nếu chưa có.
+  Future<AssetModel?> findByCode(String code);
+
   /// Thêm hoặc sửa một tài sản trên máy, đánh dấu chờ đồng bộ.
   Future<void> save(AssetModel asset);
 

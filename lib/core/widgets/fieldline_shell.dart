@@ -70,7 +70,7 @@ const _pageTitles = {
 
 /// Khung ứng dụng Fieldline: sidebar + thanh trên cho desktop/web,
 /// thanh điều hướng dưới cho mobile.
-class FieldlineShell extends StatelessWidget {
+class FieldlineShell extends ConsumerWidget {
   const FieldlineShell({
     super.key,
     required this.location,
@@ -81,7 +81,10 @@ class FieldlineShell extends StatelessWidget {
   final Widget child;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Luôn theo dõi trạng thái mạng để checkOnline() đọc được ở mọi màn,
+    // kể cả trên mobile (không có thanh trên hiển thị trạng thái).
+    ref.watch(isOnlineProvider);
     if (ResponsiveLayout.isDesktop(context)) {
       return Scaffold(
         body: Row(

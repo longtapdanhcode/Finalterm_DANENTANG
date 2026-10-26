@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 
@@ -665,6 +666,61 @@ class FlGrid extends StatelessWidget {
       if (i + columns < children.length) rows.add(Gap(spacing));
     }
     return Column(children: rows);
+  }
+}
+
+/// Ô nhập có nhãn phía trên, theo kiểu form của Fieldline.
+class FlTextField extends StatelessWidget {
+  const FlTextField({
+    super.key,
+    required this.label,
+    required this.controller,
+    this.hint,
+    this.validator,
+    this.keyboardType,
+    this.inputFormatters,
+    this.enabled = true,
+    this.textCapitalization = TextCapitalization.none,
+  });
+
+  final String label;
+  final TextEditingController controller;
+  final String? hint;
+  final FormFieldValidator<String>? validator;
+  final TextInputType? keyboardType;
+  final List<TextInputFormatter>? inputFormatters;
+  final bool enabled;
+  final TextCapitalization textCapitalization;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(fontSize: 12, color: FlColors.muted),
+        ),
+        const Gap(8),
+        TextFormField(
+          controller: controller,
+          validator: validator,
+          enabled: enabled,
+          keyboardType: keyboardType,
+          inputFormatters: inputFormatters,
+          textCapitalization: textCapitalization,
+          textInputAction: TextInputAction.next,
+          style: TextStyle(
+            fontSize: 14,
+            color: enabled ? FlColors.ink : FlColors.muted,
+          ),
+          decoration: InputDecoration(
+            hintText: hint,
+            fillColor: enabled ? FlColors.surface : FlColors.surfaceAlt,
+          ),
+        ),
+      ],
+    );
   }
 }
 
