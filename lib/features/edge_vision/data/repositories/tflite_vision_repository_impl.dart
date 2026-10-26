@@ -1,3 +1,5 @@
+import 'dart:isolate';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:image/image.dart' as img;
@@ -11,6 +13,7 @@ part 'tflite_vision_repository_impl.g.dart';
 
 class TfliteVisionRepositoryImpl implements VisionAiRepository {
   Interpreter? _interpreter;
+  IsolateInterpreter? _isolateInterpreter;
   List<String> _labels = [];
   bool _isModelLoaded = false;
 
@@ -34,6 +37,10 @@ class TfliteVisionRepositoryImpl implements VisionAiRepository {
       _interpreter = await Interpreter.fromAsset(
         AiConfig.modelPath,
         options: options,
+      );
+      // Suy luận chạy ở isolate riêng để không làm giật giao diện camera.
+      _isolateInterpreter = await IsolateInterpreter.create(
+        address: _interpreter!.address,
       );
       _isModelLoaded = true;
       debugPrint('[VisionAI] TFLite model loaded successfully');
@@ -61,30 +68,28 @@ class TfliteVisionRepositoryImpl implements VisionAiRepository {
     int width,
     int height,
   ) async {
-    if (!_isModelLoaded || _interpreter == null) {
+    if (!_isModelLoaded || _isolateInterpreter == null) {
       return const [];
     }
 
     try {
-      // Decode byte ảnh sang Image format
-      final img.Image? decoded = img.decodeImage(
-        Uint8List.fromList(imageBytes),
-      );
-      if (decoded == null) {
-        return const [];
-      }
+      final bytes = Uint8List.fromList(imageBytes);
+      // Giải mã JPEG + letterbox + chuẩn hoá nằm ngoài luồng giao diện.
+      final input = await Isolate.run(() => _buildInputTensor(bytes));
+      if (input == null) return const [];
 
-      final input = _toInputTensor(decoded);
-      final classCount = _labels.length;
-      final channels = 4 + classCount;
-      final output = [
-        List.generate(channels, (_) => List<double>.filled(_anchorCount, 0.0)),
-      ];
+      final channels = 4 + _labels.length;
+      final output = Float32List(channels * _anchorCount);
+      await _isolateInterpreter!.run(input.buffer, output.buffer);
 
-      // Chạy inference
-      _interpreter!.run(input, output);
-
-      return decodeDetections(output[0], _labels);
+      return decodeDetections([
+        for (var c = 0; c < channels; c++)
+          Float32List.sublistView(
+            output,
+            c * _anchorCount,
+            (c + 1) * _anchorCount,
+          ),
+      ], _labels);
     } catch (e) {
       debugPrint('[VisionAI] analyzeFrame error: $e');
       return const [];
@@ -94,9 +99,13 @@ class TfliteVisionRepositoryImpl implements VisionAiRepository {
   /// Số ô dự đoán của YOLO ở đầu vào 640x640.
   static const int _anchorCount = 8400;
 
-  /// Letterbox ảnh về vuông (nền xám 114 như lúc huấn luyện) rồi chuyển sang
-  /// tensor float32 dạng NCHW, giá trị 0..1.
-  Object _toInputTensor(img.Image source) {
+  /// Giải mã ảnh, letterbox về vuông (nền xám 114 như lúc huấn luyện) rồi
+  /// chuyển sang tensor float32 dạng NCHW 1x3x640x640, giá trị 0..1.
+  /// Chạy trong isolate nên phải là hàm tĩnh, không dùng trạng thái của lớp.
+  static Float32List? _buildInputTensor(Uint8List jpeg) {
+    final source = img.decodeImage(jpeg);
+    if (source == null) return null;
+
     const size = AiConfig.inputSize;
     final scale =
         size / (source.width > source.height ? source.width : source.height);
@@ -117,7 +126,7 @@ class TfliteVisionRepositoryImpl implements VisionAiRepository {
         data[2 * plane + i] = pixel.b / 255.0;
       }
     }
-    return data.reshape([1, 3, size, size]);
+    return data;
   }
 
   /// Chọn kết quả từ đầu ra YOLO [channels][anchors]: mỗi nhãn lấy điểm cao
@@ -148,6 +157,8 @@ class TfliteVisionRepositoryImpl implements VisionAiRepository {
 
   @override
   void close() {
+    _isolateInterpreter?.close();
+    _isolateInterpreter = null;
     _interpreter?.close();
     _interpreter = null;
     _isModelLoaded = false;

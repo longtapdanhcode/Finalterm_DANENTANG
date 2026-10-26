@@ -608,6 +608,12 @@ class _CameraBox extends ConsumerWidget {
                         ],
                       ),
               ),
+              if (uiState.status == ScannerStatus.success &&
+                  uiState.latestResult != null)
+                _ScanSuccessOverlay(
+                  frame: uiState.successFrame,
+                  code: uiState.latestResult!.displayValue,
+                ),
               if (uiState.status == ScannerStatus.loadingModel ||
                   uiState.status == ScannerStatus.requestingPermission)
                 Container(
@@ -634,6 +640,84 @@ class _CameraBox extends ConsumerWidget {
           ),
         },
       ),
+    );
+  }
+}
+
+/// Hình xác nhận quét thành công: khung hình vừa quét làm nền mờ, dấu tích lớn
+/// và mã đã đọc, thay cho khung xanh trống sau khi camera dừng.
+class _ScanSuccessOverlay extends StatelessWidget {
+  const _ScanSuccessOverlay({required this.frame, required this.code});
+
+  final Uint8List? frame;
+  final String code;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        if (frame != null)
+          Image.memory(frame!, fit: BoxFit.cover, gaplessPlayback: true),
+        ColoredBox(
+          color: FlColors.camera.withValues(alpha: frame != null ? 0.72 : 1),
+        ),
+        Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 84,
+                height: 84,
+                decoration: BoxDecoration(
+                  color: FlColors.cameraHighlight,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: FlColors.cameraHighlight.withValues(alpha: 0.45),
+                      blurRadius: 28,
+                      spreadRadius: 4,
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.check_rounded,
+                  size: 52,
+                  color: Color(0xFF103E39),
+                ),
+              ),
+              const Gap(16),
+              const Text(
+                'Đã quét thành công',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const Gap(6),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  code,
+                  style: const TextStyle(
+                    color: Color(0xFFD5E6E6),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
