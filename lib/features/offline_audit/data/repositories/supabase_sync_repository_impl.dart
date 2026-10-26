@@ -46,7 +46,9 @@ class SupabaseSyncRepositoryImpl implements SyncRepository {
 
   @override
   Future<void> syncPendingRecords(List<AuditRecordModel> records) async {
-    final pendingRecords = records.where((record) => !record.isSynced).toList();
+    final pendingRecords = records
+        .where((record) => !record.isSynced && !record.isDraft)
+        .toList();
     if (pendingRecords.isEmpty) return;
 
     for (final record in pendingRecords) {

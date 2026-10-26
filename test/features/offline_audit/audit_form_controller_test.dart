@@ -189,6 +189,7 @@ void main() {
             scanCode: ' ts-dc-0142 ',
             quantity: 8,
             condition: 'damaged',
+            signatureBytes: [1, 2, 3],
           );
 
       expect(ok, isTrue);
@@ -215,5 +216,54 @@ void main() {
       expect(ok, isTrue);
       expect(repo.records, hasLength(1));
     });
+
+    test('bản nháp (chưa ký) không cập nhật tài sản trong danh mục', () async {
+      final catalog = _MemoryCatalog([
+        AssetModel('TS-DC-0142')..name = 'Động cơ',
+      ]);
+      final container = ProviderContainer(
+        overrides: [
+          isarAuditRepositoryProvider.overrideWithValue(MockAuditRepository()),
+          assetCatalogRepositoryProvider.overrideWithValue(catalog),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final ok = await container
+          .read(auditFormControllerProvider.notifier)
+          .submitForm(
+            scanCode: 'TS-DC-0142',
+            quantity: 1,
+            condition: 'damaged',
+          );
+
+      expect(ok, isTrue);
+      expect(catalog.items['TS-DC-0142']!.lastAuditAt, isNull);
+    });
+
+    test(
+      'hoàn tất bản nháp ghi đè đúng phiếu (cùng id) và có chữ ký',
+      () async {
+        final repo = MockAuditRepository();
+        final container = ProviderContainer(
+          overrides: [isarAuditRepositoryProvider.overrideWithValue(repo)],
+        );
+        addTearDown(container.dispose);
+
+        final ok = await container
+            .read(auditFormControllerProvider.notifier)
+            .submitForm(
+              scanCode: 'TS-DC-0142',
+              quantity: 3,
+              signatureBytes: [1, 2, 3],
+              signerName: 'Hoàng An',
+              draftId: 7,
+            );
+
+        expect(ok, isTrue);
+        expect(repo.records.single.id, 7);
+        expect(repo.records.single.isDraft, isFalse);
+      },
+    );
   });
 }

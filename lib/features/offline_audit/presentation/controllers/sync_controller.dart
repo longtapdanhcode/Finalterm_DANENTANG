@@ -27,7 +27,9 @@ class SyncController extends _$SyncController {
     try {
       final auditRepo = ref.read(isarAuditRepositoryProvider);
       final allRecords = await auditRepo.getAllRecords();
-      final pendingRecords = allRecords.where((r) => !r.isSynced).toList();
+      final pendingRecords = allRecords
+          .where((r) => !r.isSynced && !r.isDraft)
+          .toList();
 
       if (pendingRecords.isEmpty) {
         state = const AsyncData(null);

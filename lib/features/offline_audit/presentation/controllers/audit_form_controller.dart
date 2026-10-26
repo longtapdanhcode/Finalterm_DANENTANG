@@ -60,13 +60,16 @@ class AuditFormController extends _$AuditFormController {
     List<int>? signatureBytes,
     String? signerName,
     String? signerRole,
+
+    /// Khi hoàn tất một bản nháp: ghi đè chính phiếu đó thay vì tạo phiếu mới.
+    int? draftId,
   }) async {
     state = state.copyWith(status: AuditFormStatus.saving, errorMessage: null);
 
     try {
       final repository = ref.read(isarAuditRepositoryProvider);
 
-      final record = AuditRecordModel(0)
+      final record = AuditRecordModel(draftId ?? 0)
         ..scanCode = scanCode.trim()
         ..aiDetectedLabel = (aiLabel != null && aiLabel.trim().isNotEmpty)
             ? aiLabel.trim()
@@ -84,7 +87,8 @@ class AuditFormController extends _$AuditFormController {
         ..isSynced = false;
 
       await repository.saveRecord(record);
-      await _markAssetAudited(record);
+      // Bản nháp chưa tính là đã kiểm kê: chỉ phiếu đã ký mới cập nhật tài sản.
+      if (!record.isDraft) await _markAssetAudited(record);
 
       state = state.copyWith(status: AuditFormStatus.success);
       return true;

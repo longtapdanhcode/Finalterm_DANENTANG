@@ -53,6 +53,11 @@ class AuditRecordModel {
   /// Thời điểm tạo bản ghi.
   DateTime? timestamp;
 
+  /// Bản nháp = phiếu chưa có chữ ký xác nhận. Bản nháp chỉ nằm trên máy:
+  /// không đồng bộ, không vào báo cáo và chưa tính là đã kiểm kê.
+  @ignore
+  bool get isDraft => signatureBytes == null || signatureBytes!.isEmpty;
+
   /// Cờ đánh dấu bản ghi đã được đồng bộ lên Supabase hay chưa.
   ///
   /// Mặc định là `false` – nghĩa là chưa đồng bộ (offline-first).

@@ -27,7 +27,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final records = ref.watch(auditRecordsProvider).value ?? const [];
+    // Báo cáo chỉ gồm phiếu chính thức (đã ký); bản nháp không hiện ở đây.
+    final records = ref.watch(finalAuditRecordsProvider);
     return ResponsiveLayout.isDesktop(context)
         ? _buildDesktop(records)
         : _buildMobile(records);

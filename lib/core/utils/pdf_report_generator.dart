@@ -152,8 +152,10 @@ class PdfReportGenerator {
   /// Tạo PDF báo cáo kiểm kê: thống kê tổng quan, bảng tóm tắt các phiếu, rồi
   /// chi tiết từng phiếu kèm ảnh chữ ký người xác nhận.
   static Future<Uint8List> generateAuditReport(
-    List<AuditRecordModel> records,
+    List<AuditRecordModel> allRecords,
   ) async {
+    // Bản nháp (chưa ký) không đưa vào báo cáo.
+    final records = allRecords.where((r) => !r.isDraft).toList();
     final pdf = pw.Document();
     final (font, boldFont) = await _loadFonts();
     final theme = pw.ThemeData.withFont(base: font, bold: boldFont);

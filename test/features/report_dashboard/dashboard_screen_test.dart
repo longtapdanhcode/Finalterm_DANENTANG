@@ -118,6 +118,7 @@ void main() {
           ..scanCode = 'QR-PENDING'
           ..quantity = 2
           ..timestamp = DateTime.now()
+          ..signatureBytes = [1, 2, 3]
           ..isSynced = false,
       ];
 
@@ -138,6 +139,7 @@ void main() {
           ..aiDetectedLabel = 'Động cơ điện'
           ..quantity = 10
           ..timestamp = DateTime(2026, 10, 22)
+          ..signatureBytes = [1, 2, 3]
           ..isSynced = false,
       ];
 
@@ -157,6 +159,7 @@ void main() {
         AuditRecordModel(1)
           ..scanCode = 'DESK-01'
           ..quantity = 10
+          ..signatureBytes = [1, 2, 3]
           ..isSynced = false,
       ];
 
@@ -184,6 +187,7 @@ void main() {
         AuditRecordModel(1)
           ..scanCode = 'OFF-01'
           ..quantity = 1
+          ..signatureBytes = [1, 2, 3]
           ..isSynced = false,
       ];
 

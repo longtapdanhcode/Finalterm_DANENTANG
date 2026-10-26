@@ -32,7 +32,7 @@ class _SyncScreenState extends ConsumerState<SyncScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final records = ref.watch(auditRecordsProvider).value ?? const [];
+    final records = ref.watch(finalAuditRecordsProvider);
     final syncState = ref.watch(syncControllerProvider);
     final online = ref.watch(isOnlineProvider).value ?? true;
     final pending = records.where((r) => !r.isSynced).toList();

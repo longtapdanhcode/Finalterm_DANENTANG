@@ -19,8 +19,19 @@ final auditRecordsProvider = StreamProvider<List<AuditRecordModel>>((ref) {
   });
 });
 
-/// Số bản ghi chưa đồng bộ lên Supabase.
-final pendingSyncCountProvider = Provider<int>((ref) {
+/// Phiếu chính thức (đã ký xác nhận), dùng cho báo cáo, thống kê và đồng bộ.
+final finalAuditRecordsProvider = Provider<List<AuditRecordModel>>((ref) {
   final records = ref.watch(auditRecordsProvider).value ?? const [];
-  return records.where((r) => !r.isSynced).length;
+  return records.where((r) => !r.isDraft).toList();
+});
+
+/// Bản nháp (chưa ký), chỉ nằm trên máy cho tới khi được ký hoàn tất.
+final draftAuditRecordsProvider = Provider<List<AuditRecordModel>>((ref) {
+  final records = ref.watch(auditRecordsProvider).value ?? const [];
+  return records.where((r) => r.isDraft).toList();
+});
+
+/// Số phiếu chính thức chưa đồng bộ lên Supabase (bản nháp không tính).
+final pendingSyncCountProvider = Provider<int>((ref) {
+  return ref.watch(finalAuditRecordsProvider).where((r) => !r.isSynced).length;
 });

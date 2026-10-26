@@ -66,6 +66,7 @@ GoRouter goRouter(Ref ref) {
               return AuditFormScreen(
                 initialScanCode: scanCode,
                 initialAiLabel: aiLabel,
+                draftId: extra?['draftId'] as int?,
               );
             },
           ),

@@ -9,8 +9,10 @@ import 'package:field_inventory_edge_ai/core/utils/responsive_layout.dart';
 import 'package:field_inventory_edge_ai/core/widgets/fieldline_widgets.dart';
 import 'package:field_inventory_edge_ai/features/canvas_signature/presentation/screens/signature_screen.dart';
 
+import '../../data/models/audit_record_model.dart';
 import '../../domain/entities/audit_condition.dart';
 import '../controllers/audit_form_controller.dart';
+import '../controllers/audit_records_provider.dart';
 
 /// Màu hiển thị cho từng tình trạng thiết bị.
 extension AuditConditionTone on AuditCondition {
@@ -30,10 +32,14 @@ class AuditFormScreen extends ConsumerStatefulWidget {
   final String initialScanCode;
   final String? initialAiLabel;
 
+  /// Khác `null` khi mở lại một bản nháp để ký và hoàn tất.
+  final int? draftId;
+
   const AuditFormScreen({
     super.key,
     required this.initialScanCode,
     this.initialAiLabel,
+    this.draftId,
   });
 
   @override
@@ -48,7 +54,7 @@ class _AuditFormScreenState extends ConsumerState<AuditFormScreen> {
   final _areaController = TextEditingController();
   final _locationController = TextEditingController();
   final _notesController = TextEditingController();
-  late final DateTime _createdAt;
+  late DateTime _createdAt;
   int _quantity = 1;
   AuditCondition _condition = AuditCondition.good;
 
@@ -61,10 +67,45 @@ class _AuditFormScreenState extends ConsumerState<AuditFormScreen> {
       text: widget.initialAiLabel ?? '',
     );
     _nameController = TextEditingController(text: widget.initialAiLabel ?? '');
+    if (widget.draftId != null) {
+      // Phải lắng nghe (không dùng ref.read(...).future): Riverpod 3 tạm dừng
+      // provider không có người nghe nên danh sách phiếu có thể không về.
+      _draftSub = ref.listenManual(
+        auditRecordsProvider,
+        (_, next) => _applyDraft(next.value),
+        fireImmediately: true,
+      );
+    }
+  }
+
+  ProviderSubscription<AsyncValue<List<AuditRecordModel>>>? _draftSub;
+  bool _draftLoaded = false;
+
+  /// Điền sẵn form từ bản nháp đã lưu để người dùng ký và hoàn tất.
+  void _applyDraft(List<AuditRecordModel>? records) {
+    if (_draftLoaded || records == null) return;
+    final draft = records.where((r) => r.id == widget.draftId).firstOrNull;
+    if (draft == null) return;
+    _draftLoaded = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      setState(() {
+        _scanCodeController.text = draft.scanCode ?? '';
+        _aiLabelController.text = draft.aiDetectedLabel ?? '';
+        _nameController.text = draft.assetName ?? '';
+        _areaController.text = draft.area ?? '';
+        _locationController.text = draft.location ?? '';
+        _notesController.text = draft.notes ?? '';
+        _quantity = draft.quantity < 1 ? 1 : draft.quantity;
+        _condition = AuditCondition.fromCode(draft.condition) ?? _condition;
+        _createdAt = draft.timestamp ?? _createdAt;
+      });
+    });
   }
 
   @override
   void dispose() {
+    _draftSub?.close();
     _scanCodeController.dispose();
     _aiLabelController.dispose();
     _nameController.dispose();
@@ -123,6 +164,7 @@ class _AuditFormScreenState extends ConsumerState<AuditFormScreen> {
       signatureBytes: signed?.bytes,
       signerName: signed?.signerName,
       signerRole: signed?.signerRole,
+      draftId: widget.draftId,
     );
 
     if (!mounted) return;
@@ -131,7 +173,7 @@ class _AuditFormScreenState extends ConsumerState<AuditFormScreen> {
       showFlSnack(
         context,
         signed == null
-            ? 'Đã lưu bản nháp trên thiết bị.'
+            ? 'Đã lưu bản nháp. Phiếu chưa ký nên chưa đồng bộ và chưa vào báo cáo.'
             : 'Đã lưu phiếu kiểm kê trên thiết bị.',
         tone: FlTone.success,
       );

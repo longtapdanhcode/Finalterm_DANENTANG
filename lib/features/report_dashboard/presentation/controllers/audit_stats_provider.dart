@@ -9,7 +9,7 @@ import '../../domain/audit_stats.dart';
 final auditStatsProvider = Provider<AuditStats>((ref) {
   return AuditStats.compute(
     assets: ref.watch(assetsProvider).value ?? const [],
-    records: ref.watch(auditRecordsProvider).value ?? const [],
+    records: ref.watch(finalAuditRecordsProvider),
     now: DateTime.now(),
   );
 });

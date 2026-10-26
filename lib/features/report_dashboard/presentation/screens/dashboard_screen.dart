@@ -34,6 +34,11 @@ String auditCode(AuditRecordModel r) =>
 String auditTitle(AuditRecordModel r) =>
     r.assetName ?? r.aiDetectedLabel ?? r.scanCode ?? 'Không có mã';
 
+/// Mở lại bản nháp để ký xác nhận và hoàn tất (cập nhật chính phiếu đó).
+void resumeDraft(BuildContext context, AuditRecordModel draft) {
+  context.push('/audit-form', extra: {'draftId': draft.id});
+}
+
 /// Giao diện Tổng quan cho desktop / web.
 class DesktopDashboard extends ConsumerWidget {
   const DesktopDashboard({super.key});
@@ -41,7 +46,11 @@ class DesktopDashboard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final pending = ref.watch(pendingSyncCountProvider);
-    final records = ref.watch(auditRecordsProvider).value ?? const [];
+    // Bản nháp luôn hiện đầu danh sách để không bị trôi mất; còn lại là phiếu chính thức.
+    final records = [
+      ...ref.watch(draftAuditRecordsProvider),
+      ...ref.watch(finalAuditRecordsProvider).take(3),
+    ];
     final stats = ref.watch(auditStatsProvider);
     final percent = (stats.progress * 100)
         .toStringAsFixed(1)
@@ -106,7 +115,7 @@ class DesktopDashboard extends ConsumerWidget {
         ),
         const Gap(16),
         FlSplitRow(
-          main: _RecentAuditsCard(records: records.take(3).toList()),
+          main: _RecentAuditsCard(records: records),
           side: _AttentionCard(stats: stats),
         ),
       ],
@@ -358,56 +367,65 @@ class _RecentAuditsCard extends StatelessWidget {
               ),
             ),
           for (final (i, r) in records.indexed)
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 24),
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              decoration: BoxDecoration(
-                border: i == records.length - 1
-                    ? null
-                    : const Border(bottom: BorderSide(color: FlColors.border)),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    flex: 3,
-                    child: Text(
-                      auditCode(r),
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: FlColors.primary,
+            InkWell(
+              onTap: r.isDraft ? () => resumeDraft(context, r) : null,
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 24),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                decoration: BoxDecoration(
+                  border: i == records.length - 1
+                      ? null
+                      : const Border(
+                          bottom: BorderSide(color: FlColors.border),
+                        ),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      flex: 3,
+                      child: Text(
+                        auditCode(r),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: FlColors.primary,
+                        ),
                       ),
                     ),
-                  ),
-                  Expanded(
-                    flex: 4,
-                    child: Text(
-                      auditTitle(r),
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                  ),
-                  Expanded(
-                    flex: 2,
-                    child: Text(
-                      '${r.quantity} thiết bị',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: FlColors.muted,
+                    Expanded(
+                      flex: 4,
+                      child: Text(
+                        auditTitle(r),
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 12),
                       ),
                     ),
-                  ),
-                  Expanded(
-                    flex: 3,
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: StatusPill(
-                        label: r.isSynced ? 'Đã đồng bộ' : 'Chờ đồng bộ',
-                        tone: r.isSynced ? FlTone.success : FlTone.warning,
+                    Expanded(
+                      flex: 2,
+                      child: Text(
+                        '${r.quantity} thiết bị',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: FlColors.muted,
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                    Expanded(
+                      flex: 3,
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: StatusPill(
+                          label: r.isDraft
+                              ? 'Bản nháp • chưa ký'
+                              : (r.isSynced ? 'Đã đồng bộ' : 'Chờ đồng bộ'),
+                          tone: r.isDraft
+                              ? FlTone.neutral
+                              : (r.isSynced ? FlTone.success : FlTone.warning),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
         ],
@@ -518,7 +536,8 @@ class MobileDashboard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final records = ref.watch(auditRecordsProvider).value ?? const [];
+    final drafts = ref.watch(draftAuditRecordsProvider);
+    final records = ref.watch(finalAuditRecordsProvider);
     final pending = ref.watch(pendingSyncCountProvider);
     final now = DateTime.now();
     final stats = ref.watch(auditStatsProvider);
@@ -696,6 +715,15 @@ class MobileDashboard extends ConsumerWidget {
                 ),
               ),
               const Gap(24),
+              if (drafts.isNotEmpty) ...[
+                const SectionLabel('Bản nháp chờ ký'),
+                const Gap(10),
+                for (final r in drafts) ...[
+                  _MobileRecentAudit(record: r),
+                  const Gap(8),
+                ],
+                const Gap(16),
+              ],
               const SectionLabel('Hoạt động gần đây'),
               const Gap(10),
               if (records.isEmpty)
@@ -770,7 +798,7 @@ class _MobileRecentAudit extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = record.timestamp ?? DateTime.now();
-    return FlCard(
+    final card = FlCard(
       padding: const EdgeInsets.all(14),
       child: Row(
         children: [
@@ -802,7 +830,9 @@ class _MobileRecentAudit extends StatelessWidget {
                 ),
                 const Gap(4),
                 Text(
-                  '${record.quantity} thiết bị  ·  ${record.isSynced ? 'Đã đồng bộ' : 'Lưu ngoại tuyến'}',
+                  record.isDraft
+                      ? '${record.quantity} thiết bị  ·  Bản nháp, chạm để ký'
+                      : '${record.quantity} thiết bị  ·  ${record.isSynced ? 'Đã đồng bộ' : 'Lưu ngoại tuyến'}',
                   style: const TextStyle(fontSize: 12, color: FlColors.muted),
                 ),
                 const Gap(4),
@@ -815,6 +845,12 @@ class _MobileRecentAudit extends StatelessWidget {
           ),
         ],
       ),
+    );
+    if (!record.isDraft) return card;
+    return InkWell(
+      borderRadius: BorderRadius.circular(FlRadius.card),
+      onTap: () => resumeDraft(context, record),
+      child: card,
     );
   }
 }
