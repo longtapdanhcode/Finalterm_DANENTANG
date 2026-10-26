@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:field_inventory_edge_ai/core/network/connectivity_provider.dart';
+import 'package:field_inventory_edge_ai/features/asset_catalog/data/models/asset_model.dart';
+import 'package:field_inventory_edge_ai/features/asset_catalog/domain/repositories/asset_catalog_repository.dart';
+import 'package:field_inventory_edge_ai/features/asset_catalog/presentation/controllers/asset_catalog_providers.dart';
 import 'package:field_inventory_edge_ai/features/offline_audit/data/models/audit_record_model.dart';
 import 'package:field_inventory_edge_ai/features/offline_audit/data/repositories/isar_audit_repository_impl.dart';
 import 'package:field_inventory_edge_ai/features/offline_audit/data/repositories/supabase_sync_repository_impl.dart';
@@ -50,14 +53,32 @@ class MockSyncRepository implements SyncRepository {
   }
 }
 
+class FakeAssetCatalogRepository implements AssetCatalogRepository {
+  int syncCalls = 0;
+
+  @override
+  Stream<List<AssetModel>> watchAll() => Stream.value(const []);
+
+  @override
+  Future<void> save(AssetModel asset) async {}
+
+  @override
+  Future<CatalogSyncResult> sync() async {
+    syncCalls++;
+    return const CatalogSyncResult(pushed: 0, pulled: 3);
+  }
+}
+
 void main() {
   group('Dashboard, PDF & Cloud Sync Tests', () {
     late MockAuditRepository mockRepo;
     late MockSyncRepository mockSyncRepo;
+    late FakeAssetCatalogRepository catalogRepo;
 
     setUp(() {
       mockRepo = MockAuditRepository();
       mockSyncRepo = MockSyncRepository();
+      catalogRepo = FakeAssetCatalogRepository();
     });
 
     Future<void> pumpScreen(
@@ -80,6 +101,7 @@ void main() {
               (ref) => Stream.value(mockRepo.records),
             ),
             isOnlineProvider.overrideWith((ref) => Stream.value(online)),
+            assetCatalogRepositoryProvider.overrideWithValue(catalogRepo),
           ],
           child: MaterialApp(home: Scaffold(body: screen)),
         ),
@@ -145,7 +167,11 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(mockSyncRepo.syncCalled, isTrue);
-      expect(find.text('Đã đồng bộ 1 phiếu lên đám mây.'), findsOneWidget);
+      expect(catalogRepo.syncCalls, 1);
+      expect(
+        find.text('Đã đồng bộ 1 phiếu lên đám mây. Danh mục: 3 tài sản.'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('Offline: sync is skipped and user is told why', (
@@ -174,6 +200,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(mockSyncRepo.syncCalled, isFalse);
+      expect(catalogRepo.syncCalls, 0);
       expect(
         find.text(
           'Thiết bị đang ngoại tuyến. Phiếu vẫn được lưu trên máy và sẽ đồng bộ khi có mạng.',
