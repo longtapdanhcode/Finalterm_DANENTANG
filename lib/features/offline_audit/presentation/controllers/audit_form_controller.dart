@@ -1,8 +1,11 @@
 import 'package:flutter/foundation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import 'package:field_inventory_edge_ai/features/asset_catalog/presentation/controllers/asset_catalog_providers.dart';
+
 import '../../data/models/audit_record_model.dart';
 import '../../data/repositories/isar_audit_repository_impl.dart';
+import '../../domain/entities/audit_condition.dart';
 
 part 'audit_form_controller.g.dart';
 
@@ -81,6 +84,7 @@ class AuditFormController extends _$AuditFormController {
         ..isSynced = false;
 
       await repository.saveRecord(record);
+      await _markAssetAudited(record);
 
       state = state.copyWith(status: AuditFormStatus.success);
       return true;
@@ -93,6 +97,26 @@ class AuditFormController extends _$AuditFormController {
         errorMessage: 'Lưu thất bại: $e',
       );
       return false;
+    }
+  }
+
+  /// Ghi lần kiểm kê và tình trạng mới vào tài sản cùng mã trong danh mục.
+  ///
+  /// Tài sản chưa có trong danh mục thì bỏ qua. Lỗi ở bước này không làm hỏng
+  /// việc lưu phiếu (phiếu đã nằm trên máy).
+  Future<void> _markAssetAudited(AuditRecordModel record) async {
+    final code = record.scanCode?.trim().toUpperCase();
+    if (code == null || code.isEmpty) return;
+    try {
+      final catalog = ref.read(assetCatalogRepositoryProvider);
+      final asset = await catalog.findByCode(code);
+      if (asset == null) return;
+      asset.lastAuditAt = record.timestamp;
+      final condition = AuditCondition.fromCode(record.condition);
+      if (condition != null) asset.status = condition.code;
+      await catalog.save(asset);
+    } catch (e) {
+      debugPrint('[AuditFormController] Không cập nhật được tài sản $code: $e');
     }
   }
 

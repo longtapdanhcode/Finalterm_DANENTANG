@@ -418,7 +418,7 @@ class DesktopPage extends StatelessWidget {
                 ),
               ),
               Text(
-                'Dữ liệu minh họa • v1.0',
+                'Phiên bản 1.0',
                 style: TextStyle(fontSize: 11, color: FlColors.muted),
               ),
             ],

@@ -4,12 +4,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 
-import 'package:field_inventory_edge_ai/core/data/demo_data.dart';
 import 'package:field_inventory_edge_ai/core/theme/fieldline_theme.dart';
 import 'package:field_inventory_edge_ai/core/utils/responsive_layout.dart';
 import 'package:field_inventory_edge_ai/core/widgets/fieldline_widgets.dart';
 import 'package:field_inventory_edge_ai/features/offline_audit/data/models/audit_record_model.dart';
 import 'package:field_inventory_edge_ai/features/offline_audit/presentation/controllers/audit_records_provider.dart';
+
+import '../../domain/audit_stats.dart';
+import '../controllers/audit_stats_provider.dart';
 
 /// Màn hình Tổng quan hiện trường (Figma 01 / M01).
 class DashboardScreen extends StatelessWidget {
@@ -40,6 +42,10 @@ class DesktopDashboard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final pending = ref.watch(pendingSyncCountProvider);
     final records = ref.watch(auditRecordsProvider).value ?? const [];
+    final stats = ref.watch(auditStatsProvider);
+    final percent = (stats.progress * 100)
+        .toStringAsFixed(1)
+        .replaceAll('.', ',');
 
     return DesktopPage(
       heading: DesktopPageHeading(
@@ -55,24 +61,28 @@ class DesktopDashboard extends ConsumerWidget {
         LayoutBuilder(
           builder: (context, constraints) {
             final cards = [
-              const _StatCard(
+              _StatCard(
                 label: 'Tổng tài sản',
-                value: DemoData.totalAssets,
-                caption: '+32 tài sản trong tháng',
+                value: stats.totalAssets,
+                caption: '${stats.areas.length} khu vực trong danh mục',
                 icon: Icons.inventory_2_outlined,
                 tone: FlTone.success,
+                onTap: () => context.go('/assets'),
               ),
-              const _StatCard(
+              _StatCard(
                 label: 'Đã kiểm kê',
-                value: DemoData.auditedAssets,
-                caption: '69,2% kế hoạch tháng 10',
+                value: stats.auditedAssets,
+                caption:
+                    '$percent% danh mục ${stats.periodLabel.toLowerCase()}',
                 icon: Icons.check_rounded,
                 tone: FlTone.success,
               ),
-              const _StatCard(
+              _StatCard(
                 label: 'Cần kiểm tra',
-                value: DemoData.needsCheck,
-                caption: '8 tài sản cần ưu tiên',
+                value: stats.needsCheck,
+                caption: stats.damaged == 0
+                    ? 'Không có tài sản hư hỏng'
+                    : '${stats.damaged} tài sản hư hỏng',
                 icon: Icons.center_focus_strong_outlined,
                 tone: FlTone.warning,
               ),
@@ -90,11 +100,14 @@ class DesktopDashboard extends ConsumerWidget {
           },
         ),
         const Gap(16),
-        FlSplitRow(main: const _AreaProgressCard(), side: const _EdgeAiCard()),
+        FlSplitRow(
+          main: _AreaProgressCard(stats: stats),
+          side: const _EdgeAiCard(),
+        ),
         const Gap(16),
         FlSplitRow(
           main: _RecentAuditsCard(records: records.take(3).toList()),
-          side: const _AttentionCard(),
+          side: _AttentionCard(stats: stats),
         ),
       ],
     );
@@ -172,7 +185,9 @@ class _StatCard extends StatelessWidget {
 }
 
 class _AreaProgressCard extends StatelessWidget {
-  const _AreaProgressCard();
+  const _AreaProgressCard({required this.stats});
+
+  final AuditStats stats;
 
   @override
   Widget build(BuildContext context) {
@@ -181,13 +196,23 @@ class _AreaProgressCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const CardHeader(
+          CardHeader(
             title: 'Tiến độ kiểm kê theo khu vực',
-            subtitle: 'Kỳ kiểm kê tháng 10/2026',
-            trailing: StatusPill(label: 'Đang thực hiện', tone: FlTone.info),
+            subtitle: 'Kỳ kiểm kê ${stats.periodLabel.toLowerCase()}',
+            trailing: stats.totalAssets > 0 && stats.notAudited == 0
+                ? const StatusPill(label: 'Hoàn tất')
+                : const StatusPill(label: 'Đang thực hiện', tone: FlTone.info),
           ),
           const Gap(16),
-          for (final area in DemoData.areas)
+          if (stats.areas.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              child: Text(
+                'Chưa có tài sản trong danh mục. Đồng bộ danh mục ở màn Tài sản.',
+                style: TextStyle(fontSize: 13, color: FlColors.muted),
+              ),
+            ),
+          for (final area in stats.areas)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 10),
               child: Row(
@@ -392,7 +417,9 @@ class _RecentAuditsCard extends StatelessWidget {
 }
 
 class _AttentionCard extends StatelessWidget {
-  const _AttentionCard();
+  const _AttentionCard({required this.stats});
+
+  final AuditStats stats;
 
   @override
   Widget build(BuildContext context) {
@@ -404,15 +431,15 @@ class _AttentionCard extends StatelessWidget {
           const CardHeader(title: 'Cần chú ý'),
           const Gap(24),
           _AttentionRow(
-            count: DemoData.damaged,
-            title: 'Thiết bị có dấu hiệu hỏng',
+            count: stats.damaged,
+            title: 'Thiết bị hư hỏng',
             subtitle: 'Ưu tiên kiểm tra trong hôm nay',
             tone: FlTone.danger,
             onTap: () => context.go('/assets'),
           ),
           const Gap(24),
           _AttentionRow(
-            count: DemoData.discrepancies,
+            count: stats.discrepancies,
             title: 'Sai lệch số lượng',
             subtitle: 'Đối chiếu với danh mục tài sản',
             tone: FlTone.warning,
@@ -494,13 +521,8 @@ class MobileDashboard extends ConsumerWidget {
     final records = ref.watch(auditRecordsProvider).value ?? const [];
     final pending = ref.watch(pendingSyncCountProvider);
     final now = DateTime.now();
-    final today = records.where((r) {
-      final t = r.timestamp;
-      return t != null &&
-          t.year == now.year &&
-          t.month == now.month &&
-          t.day == now.day;
-    }).length;
+    final stats = ref.watch(auditStatsProvider);
+    final today = stats.auditsToday;
     const months = [
       'THÁNG 1', 'THÁNG 2', 'THÁNG 3', 'THÁNG 4', 'THÁNG 5', 'THÁNG 6', //
       'THÁNG 7', 'THÁNG 8', 'THÁNG 9', 'THÁNG 10', 'THÁNG 11', 'THÁNG 12',
@@ -624,19 +646,19 @@ class MobileDashboard extends ConsumerWidget {
                 columns: 2,
                 spacing: 8,
                 children: [
-                  const _MobileStat(
+                  _MobileStat(
                     label: 'Tài sản',
-                    value: DemoData.totalAssets,
+                    value: stats.totalAssets,
                     tone: FlTone.success,
                   ),
-                  const _MobileStat(
+                  _MobileStat(
                     label: 'Đã kiểm',
-                    value: DemoData.auditedAssets,
+                    value: stats.auditedAssets,
                     tone: FlTone.success,
                   ),
-                  const _MobileStat(
+                  _MobileStat(
                     label: 'Cần xử lý',
-                    value: DemoData.needsCheck,
+                    value: stats.needsCheck,
                     tone: FlTone.warning,
                   ),
                   _MobileStat(
