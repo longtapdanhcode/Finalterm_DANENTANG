@@ -86,17 +86,10 @@ class TfliteVisionRepositoryImpl implements VisionAiRepository {
         1,
         (_) => List.generate(
           AiConfig.inputSize,
-          (y) => List.generate(
-            AiConfig.inputSize,
-            (x) {
-              final pixel = resized.getPixel(x, y);
-              return [
-                pixel.r / 255.0,
-                pixel.g / 255.0,
-                pixel.b / 255.0,
-              ];
-            },
-          ),
+          (y) => List.generate(AiConfig.inputSize, (x) {
+            final pixel = resized.getPixel(x, y);
+            return [pixel.r / 255.0, pixel.g / 255.0, pixel.b / 255.0];
+          }),
         ),
       );
 
@@ -113,9 +106,7 @@ class TfliteVisionRepositoryImpl implements VisionAiRepository {
       for (int i = 0; i < scores.length; i++) {
         if (scores[i] >= AiConfig.confidenceThreshold) {
           final label = _labels.length > i ? _labels[i] : 'Object #$i';
-          results.add(
-            '$label (${(scores[i] * 100).toStringAsFixed(1)}%)',
-          );
+          results.add('$label (${(scores[i] * 100).toStringAsFixed(1)}%)');
         }
       }
 

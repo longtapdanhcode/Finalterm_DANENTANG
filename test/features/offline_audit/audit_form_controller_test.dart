@@ -38,9 +38,7 @@ void main() {
     setUp(() {
       mockRepo = MockAuditRepository();
       container = ProviderContainer(
-        overrides: [
-          isarAuditRepositoryProvider.overrideWithValue(mockRepo),
-        ],
+        overrides: [isarAuditRepositoryProvider.overrideWithValue(mockRepo)],
       );
     });
 
@@ -79,6 +77,27 @@ void main() {
       expect(saved.quantity, 3);
       expect(saved.timestamp, isNotNull);
       expect(saved.isSynced, isFalse);
+    });
+
+    test('submitForm saves field details and drops blank ones', () async {
+      final notifier = container.read(auditFormControllerProvider.notifier);
+
+      final result = await notifier.submitForm(
+        scanCode: 'TS-DC-0142',
+        aiLabel: 'Động cơ điện',
+        quantity: 8,
+        area: ' Xưởng sản xuất A ',
+        location: '   ',
+        condition: 'check',
+        notes: 'Vỏ động cơ trầy xước.',
+      );
+
+      expect(result, isTrue);
+      final saved = mockRepo.records.single;
+      expect(saved.area, 'Xưởng sản xuất A');
+      expect(saved.location, isNull);
+      expect(saved.condition, 'check');
+      expect(saved.notes, 'Vỏ động cơ trầy xước.');
     });
 
     test('submitForm saves signatureBytes to AuditRecordModel', () async {

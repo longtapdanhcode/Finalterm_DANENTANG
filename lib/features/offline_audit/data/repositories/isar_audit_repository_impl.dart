@@ -29,6 +29,10 @@ class IsarAuditRepositoryImpl implements AuditRepository {
           ..scanCode = record.scanCode
           ..aiDetectedLabel = record.aiDetectedLabel
           ..quantity = record.quantity
+          ..area = record.area
+          ..location = record.location
+          ..condition = record.condition
+          ..notes = record.notes
           ..signatureBytes = record.signatureBytes
           ..timestamp = record.timestamp ?? DateTime.now()
           ..isSynced = record.isSynced;

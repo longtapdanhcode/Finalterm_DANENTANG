@@ -93,52 +93,55 @@ void main() {
       expect(state.hasError, isFalse);
     });
 
-    test('syncAll syncs pending records and returns successful count', () async {
-      final pending1 = AuditRecordModel(1)
-        ..scanCode = 'QR-001'
-        ..quantity = 5
-        ..isSynced = false;
-      final pending2 = AuditRecordModel(2)
-        ..scanCode = 'QR-002'
-        ..quantity = 10
-        ..isSynced = false;
-      final alreadySynced = AuditRecordModel(3)
-        ..scanCode = 'QR-003'
-        ..quantity = 1
-        ..isSynced = true;
+    test(
+      'syncAll syncs pending records and returns successful count',
+      () async {
+        final pending1 = AuditRecordModel(1)
+          ..scanCode = 'QR-001'
+          ..quantity = 5
+          ..isSynced = false;
+        final pending2 = AuditRecordModel(2)
+          ..scanCode = 'QR-002'
+          ..quantity = 10
+          ..isSynced = false;
+        final alreadySynced = AuditRecordModel(3)
+          ..scanCode = 'QR-003'
+          ..quantity = 1
+          ..isSynced = true;
 
-      mockAuditRepo.records = [pending1, pending2, alreadySynced];
+        mockAuditRepo.records = [pending1, pending2, alreadySynced];
 
-      final notifier = container.read(syncControllerProvider.notifier);
-      final count = await notifier.syncAll();
+        final notifier = container.read(syncControllerProvider.notifier);
+        final count = await notifier.syncAll();
 
-      expect(count, 2);
-      expect(mockSyncRepo.syncedRecords.length, 2);
-      expect(pending1.isSynced, isTrue);
-      expect(pending2.isSynced, isTrue);
+        expect(count, 2);
+        expect(mockSyncRepo.syncedRecords.length, 2);
+        expect(pending1.isSynced, isTrue);
+        expect(pending2.isSynced, isTrue);
 
-      final state = container.read(syncControllerProvider);
-      expect(state.hasError, isFalse);
-    });
+        final state = container.read(syncControllerProvider);
+        expect(state.hasError, isFalse);
+      },
+    );
 
-    test('syncAll sets AsyncError and rethrows on network/sync failure', () async {
-      mockSyncRepo.shouldThrow = true;
-      mockAuditRepo.records = [
-        AuditRecordModel(1)
-          ..scanCode = 'QR-FAIL'
-          ..isSynced = false,
-      ];
+    test(
+      'syncAll sets AsyncError and rethrows on network/sync failure',
+      () async {
+        mockSyncRepo.shouldThrow = true;
+        mockAuditRepo.records = [
+          AuditRecordModel(1)
+            ..scanCode = 'QR-FAIL'
+            ..isSynced = false,
+        ];
 
-      final notifier = container.read(syncControllerProvider.notifier);
+        final notifier = container.read(syncControllerProvider.notifier);
 
-      await expectLater(
-        notifier.syncAll(),
-        throwsA(isA<Exception>()),
-      );
+        await expectLater(notifier.syncAll(), throwsA(isA<Exception>()));
 
-      final state = container.read(syncControllerProvider);
-      expect(state.hasError, isTrue);
-      expect(mockAuditRepo.records.first.isSynced, isFalse);
-    });
+        final state = container.read(syncControllerProvider);
+        expect(state.hasError, isTrue);
+        expect(mockAuditRepo.records.first.isSynced, isFalse);
+      },
+    );
   });
 }

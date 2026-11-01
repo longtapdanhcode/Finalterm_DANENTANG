@@ -26,6 +26,18 @@ class AuditRecordModel {
   /// Số lượng sản phẩm kiểm kê.
   int quantity = 0;
 
+  /// Khu vực kiểm kê (ví dụ: "Xưởng sản xuất A").
+  String? area;
+
+  /// Vị trí cụ thể trong khu vực (ví dụ: "Dây chuyền 02 • Kệ A3").
+  String? location;
+
+  /// Mã tình trạng thực tế, xem [AuditCondition.code].
+  String? condition;
+
+  /// Ghi chú hiện trường của kiểm kê viên.
+  String? notes;
+
   /// Dữ liệu ảnh chữ ký số dưới dạng byte PNG.
   List<int>? signatureBytes;
 
