@@ -407,7 +407,11 @@ class _ReportListItem extends StatelessWidget {
           ),
           const Gap(8),
           Text(
-            signed ? 'PDF • Có chữ ký xác nhận' : 'PDF • Chưa có chữ ký',
+            !signed
+                ? 'PDF • Chưa có chữ ký'
+                : record.signerName != null
+                ? 'PDF • Ký bởi ${record.signerName}'
+                : 'PDF • Có chữ ký xác nhận',
             style: const TextStyle(fontSize: 11, color: FlColors.muted),
           ),
         ],

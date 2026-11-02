@@ -27,11 +27,9 @@ class DashboardScreen extends StatelessWidget {
 String auditCode(AuditRecordModel r) =>
     'KK-${(r.timestamp ?? DateTime.now()).year}-${r.id.toString().padLeft(3, '0')}';
 
-/// Tên hiển thị của bản ghi: nhãn AI nếu có, nếu không là mã quét.
+/// Tên hiển thị của bản ghi: tên tài sản, rồi nhãn AI, cuối cùng là mã quét.
 String auditTitle(AuditRecordModel r) =>
-    (r.aiDetectedLabel?.isNotEmpty ?? false)
-    ? r.aiDetectedLabel!
-    : (r.scanCode ?? 'Không có mã');
+    r.assetName ?? r.aiDetectedLabel ?? r.scanCode ?? 'Không có mã';
 
 /// Giao diện Tổng quan cho desktop / web.
 class DesktopDashboard extends ConsumerWidget {

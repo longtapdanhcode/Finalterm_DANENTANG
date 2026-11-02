@@ -84,10 +84,16 @@ void main() {
         location: 'Kệ A3',
         condition: 'damaged',
         notes: 'Cần thay vòng bi',
+        assetName: 'Động cơ điện Siemens',
+        signerName: 'Nguyễn Minh Anh',
+        signerRole: 'Tổ trưởng',
         timestamp: '2026-10-22T09:44:00.000Z',
       );
 
       final json = model.toJson();
+      expect(json['asset_name'], 'Động cơ điện Siemens');
+      expect(json['signer_name'], 'Nguyễn Minh Anh');
+      expect(json['signer_role'], 'Tổ trưởng');
       expect(json['area'], 'Xưởng sản xuất A');
       expect(json['location'], 'Kệ A3');
       expect(json['condition'], 'damaged');
@@ -113,6 +119,8 @@ void main() {
         ..area = 'Kho trung tâm'
         ..condition = 'good'
         ..notes = 'OK'
+        ..assetName = 'Ghế văn phòng'
+        ..signerName = 'Hoàng An'
         ..timestamp = DateTime.utc(2026, 10, 6, 10, 0, 0);
 
       final cloudModel = CloudAuditRecordModel.fromAuditRecordModel(
@@ -129,6 +137,9 @@ void main() {
       expect(cloudModel.location, isNull);
       expect(cloudModel.condition, 'good');
       expect(cloudModel.notes, 'OK');
+      expect(cloudModel.assetName, 'Ghế văn phòng');
+      expect(cloudModel.signerName, 'Hoàng An');
+      expect(cloudModel.signerRole, isNull);
       expect(cloudModel.timestamp, '2026-10-06T10:00:00.000Z');
       expect(cloudModel.signatureUrl, 'https://supabase.co/sig.png');
     });

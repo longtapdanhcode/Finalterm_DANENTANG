@@ -48,12 +48,15 @@ class AuditFormController extends _$AuditFormController {
   Future<bool> submitForm({
     required String scanCode,
     String? aiLabel,
+    String? assetName,
     required int quantity,
     String? area,
     String? location,
     String? condition,
     String? notes,
     List<int>? signatureBytes,
+    String? signerName,
+    String? signerRole,
   }) async {
     state = state.copyWith(status: AuditFormStatus.saving, errorMessage: null);
 
@@ -65,12 +68,15 @@ class AuditFormController extends _$AuditFormController {
         ..aiDetectedLabel = (aiLabel != null && aiLabel.trim().isNotEmpty)
             ? aiLabel.trim()
             : null
+        ..assetName = _clean(assetName)
         ..quantity = quantity
         ..area = _clean(area)
         ..location = _clean(location)
         ..condition = _clean(condition)
         ..notes = _clean(notes)
         ..signatureBytes = signatureBytes
+        ..signerName = _clean(signerName)
+        ..signerRole = _clean(signerRole)
         ..timestamp = DateTime.now()
         ..isSynced = false;
 
