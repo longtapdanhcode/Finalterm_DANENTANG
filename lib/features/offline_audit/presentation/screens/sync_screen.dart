@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
@@ -340,65 +341,70 @@ class _SyncScreenState extends ConsumerState<SyncScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Container(
-          color: FlColors.sidebar,
-          child: SafeArea(
-            bottom: false,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(12, 16, 24, 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      IconButton(
-                        icon: const Icon(
-                          Icons.chevron_left_rounded,
-                          size: 28,
-                          color: Colors.white,
+        AnnotatedRegion<SystemUiOverlayStyle>(
+          // Header tối: chữ và biểu tượng thanh trạng thái màu sáng.
+          value: SystemUiOverlayStyle.light,
+          child: Container(
+            color: FlColors.sidebar,
+            child: SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 16, 24, 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        IconButton(
+                          icon: const Icon(
+                            Icons.chevron_left_rounded,
+                            size: 28,
+                            color: Colors.white,
+                          ),
+                          tooltip: 'Quay lại',
+                          onPressed: () => context.canPop()
+                              ? context.pop()
+                              : context.go('/reports'),
                         ),
-                        tooltip: 'Quay lại',
-                        onPressed: () => context.canPop()
-                            ? context.pop()
-                            : context.go('/reports'),
-                      ),
-                      const Text(
-                        'Đồng bộ dữ liệu',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.w700,
+                        const Text(
+                          'Đồng bộ dữ liệu',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
+                      ],
+                    ),
+                    const Padding(
+                      padding: EdgeInsets.fromLTRB(12, 10, 0, 16),
+                      child: Text(
+                        'Làm việc liên tục, kể cả khi mất mạng',
+                        style: TextStyle(color: Colors.white, fontSize: 14),
                       ),
-                    ],
-                  ),
-                  const Padding(
-                    padding: EdgeInsets.fromLTRB(12, 10, 0, 16),
-                    child: Text(
-                      'Làm việc liên tục, kể cả khi mất mạng',
-                      style: TextStyle(color: Colors.white, fontSize: 14),
                     ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.only(left: 12),
-                    child: InfoBanner(
-                      icon: syncState.hasError || !online
-                          ? Icons.cloud_off_rounded
-                          : Icons.circle,
-                      tone: syncState.hasError || !online || pending.isNotEmpty
-                          ? FlTone.warning
-                          : FlTone.success,
-                      title: !online
-                          ? 'Thiết bị đang ngoại tuyến'
-                          : syncState.hasError
-                          ? 'Chưa kết nối được máy chủ'
-                          : pending.isEmpty
-                          ? 'Mọi phiếu đã được đồng bộ'
-                          : 'Có phiếu đang chờ đồng bộ',
-                      subtitle: 'Dữ liệu được giữ an toàn trên máy',
+                    Padding(
+                      padding: const EdgeInsets.only(left: 12),
+                      child: InfoBanner(
+                        icon: syncState.hasError || !online
+                            ? Icons.cloud_off_rounded
+                            : Icons.circle,
+                        tone:
+                            syncState.hasError || !online || pending.isNotEmpty
+                            ? FlTone.warning
+                            : FlTone.success,
+                        title: !online
+                            ? 'Thiết bị đang ngoại tuyến'
+                            : syncState.hasError
+                            ? 'Chưa kết nối được máy chủ'
+                            : pending.isEmpty
+                            ? 'Mọi phiếu đã được đồng bộ'
+                            : 'Có phiếu đang chờ đồng bộ',
+                        subtitle: 'Dữ liệu được giữ an toàn trên máy',
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),

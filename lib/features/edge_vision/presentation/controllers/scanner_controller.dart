@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -82,6 +84,19 @@ class ScannerController extends _$ScannerController {
     return const ScannerUiState();
   }
 
+  /// Chuỗi tuần tự cho mọi lệnh bật/tắt camera.
+  ///
+  /// Sự kiện vòng đời (inactive → resumed) đến ngay sau hộp thoại xin quyền,
+  /// nên lệnh start có thể chạy khi lệnh stop trước đó chưa xong và iOS báo
+  /// "The scanner was already started". Xếp hàng các lệnh để tránh chồng nhau.
+  Future<void> _cameraQueue = Future<void>.value();
+
+  Future<void> _enqueueCamera(Future<void> Function() operation) {
+    final next = _cameraQueue.then((_) => operation());
+    _cameraQueue = next.catchError((Object _) {});
+    return next;
+  }
+
   ScannerRepository get _repository => ref.read(scannerRepositoryProvider);
   VisionAiRepository get _visionAiRepo => ref.read(visionAiRepositoryProvider);
   ProcessScanResultUseCase get _processUseCase =>
@@ -138,7 +153,7 @@ class ScannerController extends _$ScannerController {
   }
 
   /// Bắt đầu stream camera
-  Future<void> startCamera() async {
+  Future<void> startCamera() => _enqueueCamera(() async {
     try {
       await _repository.start();
       state = state.copyWith(
@@ -152,10 +167,10 @@ class ScannerController extends _$ScannerController {
         errorMessage: 'Không thể khởi động camera: $e',
       );
     }
-  }
+  });
 
   /// Tạm dừng stream camera
-  Future<void> stopCamera() async {
+  Future<void> stopCamera() => _enqueueCamera(() async {
     try {
       await _repository.stop();
       if (state.status == ScannerStatus.scanning) {
@@ -164,19 +179,21 @@ class ScannerController extends _$ScannerController {
     } catch (e) {
       debugPrint('[ScannerController] Lỗi khi stop camera: $e');
     }
-  }
+  });
 
   /// Xử lý khi ứng dụng chuyển sang nền
   Future<void> onAppInactive() async {
     if (state.status == ScannerStatus.scanning) {
       _wasScanningBeforeInactive = true;
-      try {
-        await _repository.stop();
-        state = state.copyWith(status: ScannerStatus.paused);
-        debugPrint('[ScannerController] App inactive: Camera đã dừng.');
-      } catch (e) {
-        debugPrint('[ScannerController] Lỗi dừng camera khi inactive: $e');
-      }
+      await _enqueueCamera(() async {
+        try {
+          await _repository.stop();
+          state = state.copyWith(status: ScannerStatus.paused);
+          debugPrint('[ScannerController] App inactive: Camera đã dừng.');
+        } catch (e) {
+          debugPrint('[ScannerController] Lỗi dừng camera khi inactive: $e');
+        }
+      });
     }
   }
 
@@ -237,7 +254,7 @@ class ScannerController extends _$ScannerController {
     for (final barcode in capture.barcodes) {
       final result = _processUseCase.execute(barcode);
       if (result != null) {
-        _repository.stop();
+        unawaited(_enqueueCamera(_repository.stop));
         state = state.copyWith(
           status: ScannerStatus.success,
           latestResult: result,

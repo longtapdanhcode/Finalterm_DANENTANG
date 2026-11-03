@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
@@ -99,9 +100,14 @@ class FieldlineShell extends StatelessWidget {
       );
     }
 
-    return Scaffold(
-      body: child,
-      bottomNavigationBar: _BottomNav(location: location),
+    // Trang nền sáng: chữ thanh trạng thái màu tối. Header tối (Tổng quan,
+    // Đồng bộ) tự bọc AnnotatedRegion sáng và được ưu tiên vì nằm sâu hơn.
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.dark,
+      child: Scaffold(
+        body: child,
+        bottomNavigationBar: _BottomNav(location: location),
+      ),
     );
   }
 }
