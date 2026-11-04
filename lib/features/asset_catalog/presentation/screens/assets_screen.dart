@@ -1,25 +1,56 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 
-import 'package:field_inventory_edge_ai/core/data/demo_data.dart';
 import 'package:field_inventory_edge_ai/core/theme/fieldline_theme.dart';
 import 'package:field_inventory_edge_ai/core/utils/responsive_layout.dart';
 import 'package:field_inventory_edge_ai/core/widgets/fieldline_widgets.dart';
+import 'package:field_inventory_edge_ai/features/offline_audit/presentation/audit_actions.dart';
+
+import '../../data/models/asset_model.dart';
+import '../../domain/entities/asset_status.dart';
+import '../controllers/asset_catalog_providers.dart';
 
 enum _AssetFilter { all, needsCheck, notAudited }
 
-/// Màn hình Tài sản & thiết bị (Figma 02 / M06).
-///
-/// Danh mục là dữ liệu minh họa cho tới khi có nguồn danh mục tài sản thật.
-class AssetsScreen extends StatefulWidget {
+FlTone _toneOf(AssetStatus status) => switch (status) {
+  AssetStatus.good => FlTone.success,
+  AssetStatus.check => FlTone.warning,
+  AssetStatus.damaged => FlTone.danger,
+  AssetStatus.retired => FlTone.neutral,
+};
+
+bool _needsCheck(AssetModel a) =>
+    a.assetStatus == AssetStatus.check || a.assetStatus == AssetStatus.damaged;
+
+/// Thống kê nhanh của danh mục để hiện trên thẻ và các tab.
+class _CatalogStats {
+  _CatalogStats(List<AssetModel> assets)
+    : total = assets.length,
+      good = assets.where((a) => a.assetStatus == AssetStatus.good).length,
+      needsCheck = assets.where(_needsCheck).length,
+      retired = assets
+          .where((a) => a.assetStatus == AssetStatus.retired)
+          .length,
+      notAudited = assets.where((a) => a.lastAuditAt == null).length;
+
+  final int total;
+  final int good;
+  final int needsCheck;
+  final int retired;
+  final int notAudited;
+}
+
+/// Màn hình Tài sản & thiết bị (Figma 02 / M06), đọc danh mục thật trên máy.
+class AssetsScreen extends ConsumerStatefulWidget {
   const AssetsScreen({super.key});
 
   @override
-  State<AssetsScreen> createState() => _AssetsScreenState();
+  ConsumerState<AssetsScreen> createState() => _AssetsScreenState();
 }
 
-class _AssetsScreenState extends State<AssetsScreen> {
+class _AssetsScreenState extends ConsumerState<AssetsScreen> {
   final _search = TextEditingController();
   _AssetFilter _filter = _AssetFilter.all;
   String? _area;
@@ -32,39 +63,69 @@ class _AssetsScreenState extends State<AssetsScreen> {
     super.dispose();
   }
 
-  List<DemoAsset> get _visible {
+  List<AssetModel> _filtered(List<AssetModel> all) {
     final q = _search.text.trim().toLowerCase();
-    return DemoData.assets.where((a) {
+    return all.where((a) {
       if (q.isNotEmpty &&
           !a.name.toLowerCase().contains(q) &&
           !a.code.toLowerCase().contains(q)) {
         return false;
       }
       if (_area != null && a.area != _area) return false;
-      if (_status != null && a.status != _status) return false;
+      if (_status != null && a.assetStatus.label != _status) return false;
       return switch (_filter) {
         _AssetFilter.all => true,
-        _AssetFilter.needsCheck => a.tone != FlTone.success,
-        // Danh mục minh họa không có tài sản chưa kiểm kê.
-        _AssetFilter.notAudited => false,
+        _AssetFilter.needsCheck => _needsCheck(a),
+        _AssetFilter.notAudited => a.lastAuditAt == null,
       };
     }).toList();
   }
 
+  // Thêm/sửa tài sản thuộc Card 21.
   void _notReady() =>
-      showFlSnack(context, 'Thêm tài sản sẽ có khi kết nối danh mục thật.');
+      showFlSnack(context, 'Thêm tài sản sẽ có trong bản cập nhật tới.');
 
   @override
   Widget build(BuildContext context) {
+    final all = ref.watch(assetsProvider).value ?? const <AssetModel>[];
     return ResponsiveLayout.isDesktop(context)
-        ? _buildDesktop(context)
-        : _buildMobile(context);
+        ? _buildDesktop(context, all)
+        : _buildMobile(context, all);
   }
 
-  Widget _buildDesktop(BuildContext context) {
-    final assets = _visible;
-    final areas = {for (final a in DemoData.assets) a.area}.toList();
-    final statuses = {for (final a in DemoData.assets) a.status}.toList();
+  /// Thông báo khi danh mục trên máy còn trống.
+  Widget _emptyCatalog() => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
+    child: Column(
+      children: [
+        const Text(
+          'Chưa có tài sản nào trên máy.',
+          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+        ),
+        const Gap(6),
+        const Text(
+          'Đồng bộ để tải danh mục tài sản từ máy chủ.',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 13, color: FlColors.muted),
+        ),
+        const Gap(14),
+        OutlinedButton.icon(
+          onPressed: () => triggerSync(context, ref),
+          icon: const Icon(Icons.sync_rounded, size: 18),
+          label: const Text('Đồng bộ danh mục'),
+        ),
+      ],
+    ),
+  );
+
+  String _lastAudit(AssetModel a) =>
+      a.lastAuditAt == null ? 'Chưa kiểm kê' : flDate(a.lastAuditAt!);
+
+  Widget _buildDesktop(BuildContext context, List<AssetModel> all) {
+    final assets = _filtered(all);
+    final stats = _CatalogStats(all);
+    final areas = {for (final a in all) ?a.area}.toList()..sort();
+    final statuses = [for (final s in AssetStatus.values) s.label];
 
     return DesktopPage(
       heading: DesktopPageHeading(
@@ -82,11 +143,11 @@ class _AssetsScreenState extends State<AssetsScreen> {
           child: IntrinsicHeight(
             child: Row(
               children: [
-                for (final (i, m) in const [
-                  (DemoData.totalAssets, 'Tổng tài sản'),
-                  (DemoData.goodAssets, 'Hoạt động tốt'),
-                  (DemoData.needsCheckAll, 'Cần kiểm tra'),
-                  (DemoData.retired, 'Ngừng sử dụng'),
+                for (final (i, m) in [
+                  (stats.total, 'Tổng tài sản'),
+                  (stats.good, 'Hoạt động tốt'),
+                  (stats.needsCheck, 'Cần kiểm tra'),
+                  (stats.retired, 'Ngừng sử dụng'),
                 ].indexed) ...[
                   if (i > 0)
                     const VerticalDivider(width: 48, color: FlColors.border),
@@ -180,6 +241,7 @@ class _AssetsScreenState extends State<AssetsScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: _Tabs(
                   value: _filter,
+                  stats: stats,
                   onChanged: (f) => setState(() => _filter = f),
                 ),
               ),
@@ -204,7 +266,9 @@ class _AssetsScreenState extends State<AssetsScreen> {
                   ],
                 ),
               ),
-              if (assets.isEmpty)
+              if (all.isEmpty)
+                _emptyCatalog()
+              else if (assets.isEmpty)
                 const Padding(
                   padding: EdgeInsets.all(28),
                   child: Text(
@@ -219,39 +283,17 @@ class _AssetsScreenState extends State<AssetsScreen> {
                 child: Row(
                   children: [
                     Text(
-                      'Hiển thị 1–${assets.length} trong ${flNumber(DemoData.totalAssets)} tài sản',
+                      'Hiển thị ${flNumber(assets.length)} trong ${flNumber(stats.total)} tài sản',
                       style: const TextStyle(
                         fontSize: 12,
                         color: FlColors.muted,
                       ),
                     ),
                     const Spacer(),
-                    SizedBox(
-                      width: 62,
-                      child: OutlinedButton(
-                        onPressed: null,
-                        child: const Icon(Icons.arrow_back, size: 16),
-                      ),
-                    ),
-                    const Gap(6),
-                    SizedBox(
-                      width: 52,
-                      child: FilledButton(
-                        onPressed: () {},
-                        style: FilledButton.styleFrom(padding: EdgeInsets.zero),
-                        child: const Text('1'),
-                      ),
-                    ),
-                    const Gap(6),
-                    SizedBox(
-                      width: 62,
-                      child: OutlinedButton(
-                        onPressed: () => showFlSnack(
-                          context,
-                          'Danh mục minh họa chỉ có một trang.',
-                        ),
-                        child: const Text('2'),
-                      ),
+                    TextButton.icon(
+                      onPressed: () => triggerSync(context, ref),
+                      icon: const Icon(Icons.sync_rounded, size: 16),
+                      label: const Text('Đồng bộ danh mục'),
                     ),
                   ],
                 ),
@@ -263,7 +305,7 @@ class _AssetsScreenState extends State<AssetsScreen> {
     );
   }
 
-  Widget _buildTableRow(DemoAsset a) {
+  Widget _buildTableRow(AssetModel a) {
     final checked = _selected.contains(a.code);
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 24),
@@ -321,7 +363,7 @@ class _AssetsScreenState extends State<AssetsScreen> {
           ),
           Expanded(
             flex: 3,
-            child: Text(a.area, style: const TextStyle(fontSize: 12)),
+            child: Text(a.area ?? '—', style: const TextStyle(fontSize: 12)),
           ),
           Expanded(
             flex: 2,
@@ -334,13 +376,16 @@ class _AssetsScreenState extends State<AssetsScreen> {
             flex: 3,
             child: Align(
               alignment: Alignment.centerLeft,
-              child: StatusPill(label: a.status, tone: a.tone),
+              child: StatusPill(
+                label: a.assetStatus.label,
+                tone: _toneOf(a.assetStatus),
+              ),
             ),
           ),
           Expanded(
             flex: 2,
             child: Text(
-              a.lastAudit,
+              _lastAudit(a),
               style: const TextStyle(fontSize: 12, color: FlColors.muted),
             ),
           ),
@@ -349,12 +394,13 @@ class _AssetsScreenState extends State<AssetsScreen> {
     );
   }
 
-  Widget _buildMobile(BuildContext context) {
-    final assets = _visible;
+  Widget _buildMobile(BuildContext context, List<AssetModel> all) {
+    final assets = _filtered(all);
+    final stats = _CatalogStats(all);
     final chips = [
-      (_AssetFilter.all, 'Tất cả ${flNumber(DemoData.totalAssets)}'),
-      (_AssetFilter.notAudited, 'Chưa kiểm ${DemoData.notAudited}'),
-      (_AssetFilter.needsCheck, 'Cần xử lý ${DemoData.needsCheckAll}'),
+      (_AssetFilter.all, 'Tất cả ${flNumber(stats.total)}'),
+      (_AssetFilter.notAudited, 'Chưa kiểm ${stats.notAudited}'),
+      (_AssetFilter.needsCheck, 'Cần xử lý ${stats.needsCheck}'),
     ];
 
     return MobilePage(
@@ -396,7 +442,9 @@ class _AssetsScreenState extends State<AssetsScreen> {
         const Gap(20),
         SectionLabel('${assets.length} tài sản  ·  tất cả khu vực'),
         const Gap(10),
-        if (assets.isEmpty)
+        if (all.isEmpty)
+          FlCard(padding: EdgeInsets.zero, child: _emptyCatalog())
+        else if (assets.isEmpty)
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 24),
             child: Text(
@@ -433,14 +481,18 @@ class _AssetsScreenState extends State<AssetsScreen> {
                       ),
                       const Gap(4),
                       Text(
-                        '${a.code}  ·  ${a.category}',
+                        [a.code, ?a.category].join('  ·  '),
                         style: const TextStyle(
                           fontSize: 12,
                           color: FlColors.muted,
                         ),
                       ),
                       const Gap(6),
-                      StatusPill(label: a.status, tone: a.tone, bold: true),
+                      StatusPill(
+                        label: a.assetStatus.label,
+                        tone: _toneOf(a.assetStatus),
+                        bold: true,
+                      ),
                     ],
                   ),
                 ),
@@ -489,17 +541,22 @@ class _FilterDropdown extends StatelessWidget {
 }
 
 class _Tabs extends StatelessWidget {
-  const _Tabs({required this.value, required this.onChanged});
+  const _Tabs({
+    required this.value,
+    required this.stats,
+    required this.onChanged,
+  });
 
   final _AssetFilter value;
+  final _CatalogStats stats;
   final ValueChanged<_AssetFilter> onChanged;
 
   @override
   Widget build(BuildContext context) {
     final tabs = [
       (_AssetFilter.all, 'Tất cả tài sản'),
-      (_AssetFilter.needsCheck, 'Cần kiểm tra ${DemoData.needsCheckAll}'),
-      (_AssetFilter.notAudited, 'Chưa kiểm kê ${DemoData.notAudited}'),
+      (_AssetFilter.needsCheck, 'Cần kiểm tra ${stats.needsCheck}'),
+      (_AssetFilter.notAudited, 'Chưa kiểm kê ${stats.notAudited}'),
     ];
     return Container(
       decoration: const BoxDecoration(
