@@ -55,6 +55,10 @@ class AssetCatalogRepositoryImpl implements AssetCatalogRepository {
   }
 
   @override
+  Future<AssetModel?> findByCode(String code) async =>
+      _isar.assetModels.get(code);
+
+  @override
   Future<void> save(AssetModel asset) async {
     asset
       ..updatedAt = DateTime.now()

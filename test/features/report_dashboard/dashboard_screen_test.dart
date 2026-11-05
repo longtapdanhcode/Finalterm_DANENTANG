@@ -60,6 +60,9 @@ class FakeAssetCatalogRepository implements AssetCatalogRepository {
   Stream<List<AssetModel>> watchAll() => Stream.value(const []);
 
   @override
+  Future<AssetModel?> findByCode(String code) async => null;
+
+  @override
   Future<void> save(AssetModel asset) async {}
 
   @override

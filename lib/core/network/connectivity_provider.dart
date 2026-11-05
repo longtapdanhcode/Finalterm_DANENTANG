@@ -14,3 +14,10 @@ final isOnlineProvider = StreamProvider<bool>((ref) async* {
 
 bool _hasNetwork(List<ConnectivityResult> results) =>
     results.any((r) => r != ConnectivityResult.none);
+
+/// Trạng thái mạng hiện tại, dùng trước khi gọi máy chủ.
+///
+/// Giá trị chỉ có khi [isOnlineProvider] đang được theo dõi: khung app
+/// (FieldlineShell) luôn theo dõi nó. Chưa biết trạng thái thì coi như có mạng
+/// và để lệnh gọi máy chủ tự báo lỗi.
+bool checkOnline(WidgetRef ref) => ref.read(isOnlineProvider).value ?? true;

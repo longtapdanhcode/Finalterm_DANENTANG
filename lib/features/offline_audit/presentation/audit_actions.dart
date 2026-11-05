@@ -14,7 +14,7 @@ Future<void> triggerSync(BuildContext context, WidgetRef ref) async {
   if (syncState.isLoading) return;
 
   // Không thử gọi Supabase khi thiết bị không có mạng; phiếu vẫn nằm trên máy.
-  if (ref.read(isOnlineProvider).value == false) {
+  if (!checkOnline(ref)) {
     showFlSnack(
       context,
       'Thiết bị đang ngoại tuyến. Phiếu vẫn được lưu trên máy và sẽ đồng bộ khi có mạng.',

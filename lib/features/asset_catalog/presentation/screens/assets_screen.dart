@@ -3,7 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:printing/printing.dart';
+
 import 'package:field_inventory_edge_ai/core/theme/fieldline_theme.dart';
+import 'package:field_inventory_edge_ai/core/utils/pdf_report_generator.dart';
 import 'package:field_inventory_edge_ai/core/utils/responsive_layout.dart';
 import 'package:field_inventory_edge_ai/core/widgets/fieldline_widgets.dart';
 import 'package:field_inventory_edge_ai/features/offline_audit/presentation/audit_actions.dart';
@@ -11,15 +14,9 @@ import 'package:field_inventory_edge_ai/features/offline_audit/presentation/audi
 import '../../data/models/asset_model.dart';
 import '../../domain/entities/asset_status.dart';
 import '../controllers/asset_catalog_providers.dart';
+import 'asset_editor_screen.dart' show assetStatusTone;
 
 enum _AssetFilter { all, needsCheck, notAudited }
-
-FlTone _toneOf(AssetStatus status) => switch (status) {
-  AssetStatus.good => FlTone.success,
-  AssetStatus.check => FlTone.warning,
-  AssetStatus.damaged => FlTone.danger,
-  AssetStatus.retired => FlTone.neutral,
-};
 
 bool _needsCheck(AssetModel a) =>
     a.assetStatus == AssetStatus.check || a.assetStatus == AssetStatus.damaged;
@@ -81,9 +78,24 @@ class _AssetsScreenState extends ConsumerState<AssetsScreen> {
     }).toList();
   }
 
-  // Thêm/sửa tài sản thuộc Card 21.
-  void _notReady() =>
-      showFlSnack(context, 'Thêm tài sản sẽ có trong bản cập nhật tới.');
+  void _addAsset() => context.push('/assets/new');
+
+  void _editAsset(AssetModel a) => context.push('/assets/${a.code}');
+
+  /// Xuất PDF các tài sản đang chọn, hoặc cả danh sách đang lọc nếu chưa chọn.
+  Future<void> _exportList(List<AssetModel> visible) async {
+    final selected = visible.where((a) => _selected.contains(a.code)).toList();
+    final toExport = selected.isNotEmpty ? selected : visible;
+    try {
+      showFlSnack(context, 'Đang tạo danh sách ${toExport.length} tài sản...');
+      final bytes = await PdfReportGenerator.generateAssetList(toExport);
+      await Printing.sharePdf(bytes: bytes, filename: 'danh_sach_tai_san.pdf');
+    } catch (e) {
+      if (mounted) {
+        showFlSnack(context, 'Lỗi khi xuất danh sách: $e', tone: FlTone.danger);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -132,7 +144,7 @@ class _AssetsScreenState extends ConsumerState<AssetsScreen> {
         title: 'Tài sản & thiết bị',
         subtitle: 'Danh mục tài sản và tình trạng mới nhất từ các đợt kiểm kê.',
         action: FilledButton.icon(
-          onPressed: _notReady,
+          onPressed: _addAsset,
           icon: const Icon(Icons.add_rounded, size: 18),
           label: const Text('Thêm tài sản'),
         ),
@@ -227,11 +239,12 @@ class _AssetsScreenState extends ConsumerState<AssetsScreen> {
                     ),
                     const Spacer(flex: 2),
                     OutlinedButton(
-                      onPressed: () => showFlSnack(
-                        context,
-                        'Đã chuẩn bị ${assets.length} tài sản để xuất.',
+                      onPressed: () => _exportList(assets),
+                      child: Text(
+                        _selected.isEmpty
+                            ? 'Xuất danh sách'
+                            : 'Xuất ${_selected.length} đã chọn',
                       ),
-                      child: const Text('Xuất danh sách'),
                     ),
                   ],
                 ),
@@ -307,89 +320,97 @@ class _AssetsScreenState extends ConsumerState<AssetsScreen> {
 
   Widget _buildTableRow(AssetModel a) {
     final checked = _selected.contains(a.code);
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 24),
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: FlColors.border)),
-      ),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 36,
-            child: Checkbox(
-              value: checked,
-              visualDensity: VisualDensity.compact,
-              onChanged: (v) => setState(
-                () => v! ? _selected.add(a.code) : _selected.remove(a.code),
+    return InkWell(
+      onTap: () => _editAsset(a),
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 24),
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: const BoxDecoration(
+          border: Border(bottom: BorderSide(color: FlColors.border)),
+        ),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 36,
+              child: Checkbox(
+                value: checked,
+                visualDensity: VisualDensity.compact,
+                onChanged: (v) => setState(
+                  () => v! ? _selected.add(a.code) : _selected.remove(a.code),
+                ),
               ),
             ),
-          ),
-          Expanded(
-            flex: 5,
-            child: Row(
-              children: [
-                const IconTile(
-                  icon: Icons.inventory_2_outlined,
-                  tone: FlTone.neutral,
-                  size: 38,
-                  iconSize: 18,
-                ),
-                const Gap(12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        a.name,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const Gap(3),
-                      Text(
-                        a.code,
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: FlColors.muted,
-                        ),
-                      ),
-                    ],
+            Expanded(
+              flex: 5,
+              child: Row(
+                children: [
+                  const IconTile(
+                    icon: Icons.inventory_2_outlined,
+                    tone: FlTone.neutral,
+                    size: 38,
+                    iconSize: 18,
                   ),
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            flex: 3,
-            child: Text(a.area ?? '—', style: const TextStyle(fontSize: 12)),
-          ),
-          Expanded(
-            flex: 2,
-            child: Text(
-              '${a.quantity}',
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
-            ),
-          ),
-          Expanded(
-            flex: 3,
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: StatusPill(
-                label: a.assetStatus.label,
-                tone: _toneOf(a.assetStatus),
+                  const Gap(12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          a.name,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const Gap(3),
+                        Text(
+                          a.isSynced ? a.code : '${a.code}  •  Chờ đồng bộ',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: a.isSynced
+                                ? FlColors.muted
+                                : FlColors.warningStrong,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
-          ),
-          Expanded(
-            flex: 2,
-            child: Text(
-              _lastAudit(a),
-              style: const TextStyle(fontSize: 12, color: FlColors.muted),
+            Expanded(
+              flex: 3,
+              child: Text(a.area ?? '—', style: const TextStyle(fontSize: 12)),
             ),
-          ),
-        ],
+            Expanded(
+              flex: 2,
+              child: Text(
+                '${a.quantity}',
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            Expanded(
+              flex: 3,
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: StatusPill(
+                  label: a.assetStatus.label,
+                  tone: assetStatusTone(a.assetStatus),
+                ),
+              ),
+            ),
+            Expanded(
+              flex: 2,
+              child: Text(
+                _lastAudit(a),
+                style: const TextStyle(fontSize: 12, color: FlColors.muted),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -406,7 +427,7 @@ class _AssetsScreenState extends ConsumerState<AssetsScreen> {
     return MobilePage(
       title: 'Tài sản & thiết bị',
       trailing: IconButton.filled(
-        onPressed: _notReady,
+        onPressed: _addAsset,
         tooltip: 'Thêm tài sản',
         style: IconButton.styleFrom(backgroundColor: FlColors.primary),
         icon: const Icon(Icons.add_rounded, color: Colors.white),
@@ -455,10 +476,7 @@ class _AssetsScreenState extends ConsumerState<AssetsScreen> {
         for (final a in assets) ...[
           FlCard(
             padding: const EdgeInsets.all(13),
-            onTap: () => context.push(
-              '/audit-form',
-              extra: {'scanCode': a.code, 'aiLabel': a.name},
-            ),
+            onTap: () => _editAsset(a),
             child: Row(
               children: [
                 const IconTile(
@@ -488,10 +506,21 @@ class _AssetsScreenState extends ConsumerState<AssetsScreen> {
                         ),
                       ),
                       const Gap(6),
-                      StatusPill(
-                        label: a.assetStatus.label,
-                        tone: _toneOf(a.assetStatus),
-                        bold: true,
+                      Row(
+                        children: [
+                          StatusPill(
+                            label: a.assetStatus.label,
+                            tone: assetStatusTone(a.assetStatus),
+                            bold: true,
+                          ),
+                          if (!a.isSynced) ...[
+                            const Gap(6),
+                            const StatusPill(
+                              label: 'Chờ đồng bộ',
+                              tone: FlTone.warning,
+                            ),
+                          ],
+                        ],
                       ),
                     ],
                   ),
