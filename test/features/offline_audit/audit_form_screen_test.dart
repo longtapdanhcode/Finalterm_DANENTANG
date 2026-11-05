@@ -7,9 +7,13 @@ import 'package:go_router/go_router.dart';
 import 'package:field_inventory_edge_ai/features/offline_audit/data/models/audit_record_model.dart';
 import 'package:field_inventory_edge_ai/features/offline_audit/data/repositories/isar_audit_repository_impl.dart';
 import 'package:field_inventory_edge_ai/features/offline_audit/domain/repositories/audit_repository.dart';
+import 'package:field_inventory_edge_ai/features/offline_audit/presentation/controllers/audit_records_provider.dart';
 import 'package:field_inventory_edge_ai/features/offline_audit/presentation/screens/audit_form_screen.dart';
 
 class MockAuditRepository implements AuditRepository {
+  @override
+  Future<void> deleteRecord(int id) async {}
+
   final List<AuditRecordModel> records = [];
 
   @override
@@ -151,6 +155,51 @@ void main() {
       // Tên tài sản được điền sẵn từ nhãn AI và lưu cùng phiếu.
       expect(record.assetName, 'Monitor 27-inch');
       expect(record.signerName, isNull);
+    });
+
+    testWidgets('mở lại bản nháp: điền sẵn dữ liệu đã lưu', (tester) async {
+      // Màn mobile đủ cao để danh sách dựng hết các trường.
+      tester.view.physicalSize = const Size(420, 2400);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final draft = AuditRecordModel(5)
+        ..scanCode = 'TS-MK-0321'
+        ..aiDetectedLabel = 'Máy khoan'
+        ..assetName = 'Máy khoan Bosch GSB'
+        ..area = 'Kho trung tâm'
+        ..location = 'Kệ A3'
+        ..notes = 'Cần kiểm tra lại dây nguồn'
+        ..quantity = 4
+        ..condition = 'check'
+        ..timestamp = DateTime(2026, 10, 26, 9, 30);
+
+      final router = GoRouter(
+        initialLocation: '/audit-form',
+        routes: [
+          GoRoute(path: '/', builder: (context, state) => const SizedBox()),
+          GoRoute(
+            path: '/audit-form',
+            builder: (context, state) => const Scaffold(
+              body: AuditFormScreen(initialScanCode: '', draftId: 5),
+            ),
+          ),
+        ],
+      );
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            isarAuditRepositoryProvider.overrideWithValue(mockRepo),
+            auditRecordsProvider.overrideWith((ref) => Stream.value([draft])),
+          ],
+          child: MaterialApp.router(routerConfig: router),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('TS-MK-0321'), findsWidgets);
+      expect(find.text('Máy khoan Bosch GSB'), findsWidgets);
+      expect(find.text('Kho trung tâm'), findsWidgets);
+      expect(find.text('04'), findsWidgets);
     });
   });
 }

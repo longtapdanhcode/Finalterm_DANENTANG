@@ -75,6 +75,9 @@ dev_dependencies:
 dependency_overrides:
   analyzer: ^14.4.0
   analyzer_plugin: ^0.14.0
+  # Bản vá cục bộ: xem third_party/mobile_scanner/PATCH_NOTES.md
+  mobile_scanner:
+    path: third_party/mobile_scanner
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

@@ -11,6 +11,9 @@ import 'package:field_inventory_edge_ai/features/offline_audit/domain/repositori
 import 'package:field_inventory_edge_ai/features/offline_audit/presentation/controllers/sync_controller.dart';
 
 class MockAuditRepository implements AuditRepository {
+  @override
+  Future<void> deleteRecord(int id) async {}
+
   List<AuditRecordModel> records = [];
 
   @override
@@ -99,10 +102,12 @@ void main() {
         final pending1 = AuditRecordModel(1)
           ..scanCode = 'QR-001'
           ..quantity = 5
+          ..signatureBytes = [1, 2, 3]
           ..isSynced = false;
         final pending2 = AuditRecordModel(2)
           ..scanCode = 'QR-002'
           ..quantity = 10
+          ..signatureBytes = [1, 2, 3]
           ..isSynced = false;
         final alreadySynced = AuditRecordModel(3)
           ..scanCode = 'QR-003'
@@ -124,6 +129,28 @@ void main() {
       },
     );
 
+    test('syncAll bỏ qua bản nháp chưa ký', () async {
+      final draft = AuditRecordModel(1)
+        ..scanCode = 'QR-DRAFT'
+        ..quantity = 1
+        ..isSynced = false;
+      final signed = AuditRecordModel(2)
+        ..scanCode = 'QR-SIGNED'
+        ..quantity = 1
+        ..signatureBytes = [1, 2, 3]
+        ..isSynced = false;
+      mockAuditRepo.records = [draft, signed];
+
+      final count = await container
+          .read(syncControllerProvider.notifier)
+          .syncAll();
+
+      expect(count, 1);
+      expect(draft.isSynced, isFalse);
+      expect(signed.isSynced, isTrue);
+      expect(mockSyncRepo.syncedRecords, [signed]);
+    });
+
     test(
       'syncAll sets AsyncError and rethrows on network/sync failure',
       () async {
@@ -131,6 +158,7 @@ void main() {
         mockAuditRepo.records = [
           AuditRecordModel(1)
             ..scanCode = 'QR-FAIL'
+            ..signatureBytes = [1, 2, 3]
             ..isSynced = false,
         ];
 

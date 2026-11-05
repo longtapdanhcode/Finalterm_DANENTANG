@@ -33,6 +33,9 @@ class ScannerUiState {
   final bool isTorchOn;
   final ScanResult? latestResult;
   final List<String> detectedObjects;
+
+  /// Khung hình camera lúc quét thành công, dùng làm hình xác nhận.
+  final Uint8List? successFrame;
   final String? errorMessage;
 
   const ScannerUiState({
@@ -40,6 +43,7 @@ class ScannerUiState {
     this.isTorchOn = false,
     this.latestResult,
     this.detectedObjects = const [],
+    this.successFrame,
     this.errorMessage,
   });
 
@@ -48,6 +52,8 @@ class ScannerUiState {
     bool? isTorchOn,
     ScanResult? latestResult,
     List<String>? detectedObjects,
+    Uint8List? successFrame,
+    bool clearSuccessFrame = false,
     String? errorMessage,
   }) {
     return ScannerUiState(
@@ -55,6 +61,9 @@ class ScannerUiState {
       isTorchOn: isTorchOn ?? this.isTorchOn,
       latestResult: latestResult ?? this.latestResult,
       detectedObjects: detectedObjects ?? this.detectedObjects,
+      successFrame: clearSuccessFrame
+          ? null
+          : (successFrame ?? this.successFrame),
       errorMessage: errorMessage,
     );
   }
@@ -78,6 +87,10 @@ ProcessScanResultUseCase processScanResultUseCase(Ref ref) {
 class ScannerController extends _$ScannerController {
   bool _wasScanningBeforeInactive = false;
   bool _isAnalyzing = false;
+
+  /// Số khung liên tiếp không nhận ra gì; đủ [_clearAfterEmptyFrames] thì xoá nhãn cũ.
+  int _emptyFrames = 0;
+  static const int _clearAfterEmptyFrames = 3;
 
   @override
   ScannerUiState build() {
@@ -235,7 +248,12 @@ class ScannerController extends _$ScannerController {
       );
 
       if (objects.isNotEmpty) {
+        _emptyFrames = 0;
         state = state.copyWith(detectedObjects: objects);
+      } else if (state.detectedObjects.isNotEmpty &&
+          ++_emptyFrames >= _clearAfterEmptyFrames) {
+        _emptyFrames = 0;
+        state = state.copyWith(detectedObjects: const []);
       }
     } catch (e) {
       debugPrint('[ScannerController] Error during AI inference: $e');
@@ -258,6 +276,7 @@ class ScannerController extends _$ScannerController {
         state = state.copyWith(
           status: ScannerStatus.success,
           latestResult: result,
+          successFrame: capture.image,
         );
         break;
       }
@@ -266,7 +285,11 @@ class ScannerController extends _$ScannerController {
 
   /// Tiếp tục quét mã tiếp theo
   Future<void> resumeScanning() async {
-    state = state.copyWith(latestResult: null, errorMessage: null);
+    state = state.copyWith(
+      latestResult: null,
+      clearSuccessFrame: true,
+      errorMessage: null,
+    );
     await startCamera();
   }
 

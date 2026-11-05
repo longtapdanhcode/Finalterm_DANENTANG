@@ -4,12 +4,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 
-import 'package:field_inventory_edge_ai/core/data/demo_data.dart';
 import 'package:field_inventory_edge_ai/core/theme/fieldline_theme.dart';
 import 'package:field_inventory_edge_ai/core/utils/responsive_layout.dart';
 import 'package:field_inventory_edge_ai/core/widgets/fieldline_widgets.dart';
 import 'package:field_inventory_edge_ai/features/offline_audit/data/models/audit_record_model.dart';
+import 'package:field_inventory_edge_ai/features/offline_audit/presentation/controllers/audit_form_controller.dart';
 import 'package:field_inventory_edge_ai/features/offline_audit/presentation/controllers/audit_records_provider.dart';
+
+import '../../domain/audit_stats.dart';
+import '../controllers/audit_stats_provider.dart';
 
 /// Màn hình Tổng quan hiện trường (Figma 01 / M01).
 class DashboardScreen extends StatelessWidget {
@@ -32,6 +35,51 @@ String auditCode(AuditRecordModel r) =>
 String auditTitle(AuditRecordModel r) =>
     r.assetName ?? r.aiDetectedLabel ?? r.scanCode ?? 'Không có mã';
 
+/// Mở lại bản nháp để ký xác nhận và hoàn tất (cập nhật chính phiếu đó).
+void resumeDraft(BuildContext context, AuditRecordModel draft) {
+  context.push('/audit-form', extra: {'draftId': draft.id});
+}
+
+/// Hỏi xác nhận rồi xoá một bản nháp chưa ký khỏi máy.
+Future<void> confirmDeleteDraft(
+  BuildContext context,
+  WidgetRef ref,
+  AuditRecordModel draft,
+) async {
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: const Text('Xoá bản nháp?'),
+      content: Text(
+        'Bản nháp ${auditCode(draft)} (${auditTitle(draft)}) sẽ bị xoá khỏi '
+        'thiết bị và không thể khôi phục.',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(ctx).pop(false),
+          child: const Text('Huỷ'),
+        ),
+        FilledButton(
+          style: FilledButton.styleFrom(backgroundColor: FlColors.danger),
+          onPressed: () => Navigator.of(ctx).pop(true),
+          child: const Text('Xoá'),
+        ),
+      ],
+    ),
+  );
+  if (ok != true) return;
+  final deleted = await ref
+      .read(auditFormControllerProvider.notifier)
+      .deleteDraft(draft.id);
+  if (context.mounted) {
+    showFlSnack(
+      context,
+      deleted ? 'Đã xoá bản nháp.' : 'Không xoá được bản nháp.',
+      tone: deleted ? FlTone.success : FlTone.danger,
+    );
+  }
+}
+
 /// Giao diện Tổng quan cho desktop / web.
 class DesktopDashboard extends ConsumerWidget {
   const DesktopDashboard({super.key});
@@ -39,7 +87,15 @@ class DesktopDashboard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final pending = ref.watch(pendingSyncCountProvider);
-    final records = ref.watch(auditRecordsProvider).value ?? const [];
+    // Bản nháp luôn hiện đầu danh sách để không bị trôi mất; còn lại là phiếu chính thức.
+    final records = [
+      ...ref.watch(draftAuditRecordsProvider),
+      ...ref.watch(finalAuditRecordsProvider).take(3),
+    ];
+    final stats = ref.watch(auditStatsProvider);
+    final percent = (stats.progress * 100)
+        .toStringAsFixed(1)
+        .replaceAll('.', ',');
 
     return DesktopPage(
       heading: DesktopPageHeading(
@@ -55,24 +111,28 @@ class DesktopDashboard extends ConsumerWidget {
         LayoutBuilder(
           builder: (context, constraints) {
             final cards = [
-              const _StatCard(
+              _StatCard(
                 label: 'Tổng tài sản',
-                value: DemoData.totalAssets,
-                caption: '+32 tài sản trong tháng',
+                value: stats.totalAssets,
+                caption: '${stats.areas.length} khu vực trong danh mục',
                 icon: Icons.inventory_2_outlined,
                 tone: FlTone.success,
+                onTap: () => context.go('/assets'),
               ),
-              const _StatCard(
+              _StatCard(
                 label: 'Đã kiểm kê',
-                value: DemoData.auditedAssets,
-                caption: '69,2% kế hoạch tháng 10',
+                value: stats.auditedAssets,
+                caption:
+                    '$percent% danh mục ${stats.periodLabel.toLowerCase()}',
                 icon: Icons.check_rounded,
                 tone: FlTone.success,
               ),
-              const _StatCard(
+              _StatCard(
                 label: 'Cần kiểm tra',
-                value: DemoData.needsCheck,
-                caption: '8 tài sản cần ưu tiên',
+                value: stats.needsCheck,
+                caption: stats.damaged == 0
+                    ? 'Không có tài sản hư hỏng'
+                    : '${stats.damaged} tài sản hư hỏng',
                 icon: Icons.center_focus_strong_outlined,
                 tone: FlTone.warning,
               ),
@@ -90,11 +150,14 @@ class DesktopDashboard extends ConsumerWidget {
           },
         ),
         const Gap(16),
-        FlSplitRow(main: const _AreaProgressCard(), side: const _EdgeAiCard()),
+        FlSplitRow(
+          main: _AreaProgressCard(stats: stats),
+          side: const _EdgeAiCard(),
+        ),
         const Gap(16),
         FlSplitRow(
-          main: _RecentAuditsCard(records: records.take(3).toList()),
-          side: const _AttentionCard(),
+          main: _RecentAuditsCard(records: records),
+          side: _AttentionCard(stats: stats),
         ),
       ],
     );
@@ -172,7 +235,9 @@ class _StatCard extends StatelessWidget {
 }
 
 class _AreaProgressCard extends StatelessWidget {
-  const _AreaProgressCard();
+  const _AreaProgressCard({required this.stats});
+
+  final AuditStats stats;
 
   @override
   Widget build(BuildContext context) {
@@ -181,13 +246,23 @@ class _AreaProgressCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const CardHeader(
+          CardHeader(
             title: 'Tiến độ kiểm kê theo khu vực',
-            subtitle: 'Kỳ kiểm kê tháng 10/2026',
-            trailing: StatusPill(label: 'Đang thực hiện', tone: FlTone.info),
+            subtitle: 'Kỳ kiểm kê ${stats.periodLabel.toLowerCase()}',
+            trailing: stats.totalAssets > 0 && stats.notAudited == 0
+                ? const StatusPill(label: 'Hoàn tất')
+                : const StatusPill(label: 'Đang thực hiện', tone: FlTone.info),
           ),
           const Gap(16),
-          for (final area in DemoData.areas)
+          if (stats.areas.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              child: Text(
+                'Chưa có tài sản trong danh mục. Đồng bộ danh mục ở màn Tài sản.',
+                style: TextStyle(fontSize: 13, color: FlColors.muted),
+              ),
+            ),
+          for (final area in stats.areas)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 10),
               child: Row(
@@ -289,13 +364,13 @@ class _EdgeAiCard extends StatelessWidget {
   }
 }
 
-class _RecentAuditsCard extends StatelessWidget {
+class _RecentAuditsCard extends ConsumerWidget {
   const _RecentAuditsCard({required this.records});
 
   final List<AuditRecordModel> records;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return FlCard(
       padding: const EdgeInsets.fromLTRB(0, 20, 0, 12),
       child: Column(
@@ -333,56 +408,82 @@ class _RecentAuditsCard extends StatelessWidget {
               ),
             ),
           for (final (i, r) in records.indexed)
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 24),
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              decoration: BoxDecoration(
-                border: i == records.length - 1
-                    ? null
-                    : const Border(bottom: BorderSide(color: FlColors.border)),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    flex: 3,
-                    child: Text(
-                      auditCode(r),
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: FlColors.primary,
+            InkWell(
+              onTap: r.isDraft ? () => resumeDraft(context, r) : null,
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 24),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                decoration: BoxDecoration(
+                  border: i == records.length - 1
+                      ? null
+                      : const Border(
+                          bottom: BorderSide(color: FlColors.border),
+                        ),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      flex: 3,
+                      child: Text(
+                        auditCode(r),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: FlColors.primary,
+                        ),
                       ),
                     ),
-                  ),
-                  Expanded(
-                    flex: 4,
-                    child: Text(
-                      auditTitle(r),
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                  ),
-                  Expanded(
-                    flex: 2,
-                    child: Text(
-                      '${r.quantity} thiết bị',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: FlColors.muted,
+                    Expanded(
+                      flex: 4,
+                      child: Text(
+                        auditTitle(r),
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 12),
                       ),
                     ),
-                  ),
-                  Expanded(
-                    flex: 3,
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: StatusPill(
-                        label: r.isSynced ? 'Đã đồng bộ' : 'Chờ đồng bộ',
-                        tone: r.isSynced ? FlTone.success : FlTone.warning,
+                    Expanded(
+                      flex: 2,
+                      child: Text(
+                        '${r.quantity} thiết bị',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: FlColors.muted,
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                    Expanded(
+                      flex: 3,
+                      child: Row(
+                        children: [
+                          Flexible(
+                            child: StatusPill(
+                              label: r.isDraft
+                                  ? 'Bản nháp • chưa ký'
+                                  : (r.isSynced ? 'Đã đồng bộ' : 'Chờ đồng bộ'),
+                              tone: r.isDraft
+                                  ? FlTone.neutral
+                                  : (r.isSynced
+                                        ? FlTone.success
+                                        : FlTone.warning),
+                            ),
+                          ),
+                          if (r.isDraft)
+                            IconButton(
+                              tooltip: 'Xoá bản nháp',
+                              visualDensity: VisualDensity.compact,
+                              onPressed: () =>
+                                  confirmDeleteDraft(context, ref, r),
+                              icon: const Icon(
+                                Icons.delete_outline_rounded,
+                                size: 18,
+                                color: FlColors.muted,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
         ],
@@ -392,7 +493,9 @@ class _RecentAuditsCard extends StatelessWidget {
 }
 
 class _AttentionCard extends StatelessWidget {
-  const _AttentionCard();
+  const _AttentionCard({required this.stats});
+
+  final AuditStats stats;
 
   @override
   Widget build(BuildContext context) {
@@ -404,15 +507,15 @@ class _AttentionCard extends StatelessWidget {
           const CardHeader(title: 'Cần chú ý'),
           const Gap(24),
           _AttentionRow(
-            count: DemoData.damaged,
-            title: 'Thiết bị có dấu hiệu hỏng',
+            count: stats.damaged,
+            title: 'Thiết bị hư hỏng',
             subtitle: 'Ưu tiên kiểm tra trong hôm nay',
             tone: FlTone.danger,
             onTap: () => context.go('/assets'),
           ),
           const Gap(24),
           _AttentionRow(
-            count: DemoData.discrepancies,
+            count: stats.discrepancies,
             title: 'Sai lệch số lượng',
             subtitle: 'Đối chiếu với danh mục tài sản',
             tone: FlTone.warning,
@@ -491,16 +594,12 @@ class MobileDashboard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final records = ref.watch(auditRecordsProvider).value ?? const [];
+    final drafts = ref.watch(draftAuditRecordsProvider);
+    final records = ref.watch(finalAuditRecordsProvider);
     final pending = ref.watch(pendingSyncCountProvider);
     final now = DateTime.now();
-    final today = records.where((r) {
-      final t = r.timestamp;
-      return t != null &&
-          t.year == now.year &&
-          t.month == now.month &&
-          t.day == now.day;
-    }).length;
+    final stats = ref.watch(auditStatsProvider);
+    final today = stats.auditsToday;
     const months = [
       'THÁNG 1', 'THÁNG 2', 'THÁNG 3', 'THÁNG 4', 'THÁNG 5', 'THÁNG 6', //
       'THÁNG 7', 'THÁNG 8', 'THÁNG 9', 'THÁNG 10', 'THÁNG 11', 'THÁNG 12',
@@ -624,19 +723,19 @@ class MobileDashboard extends ConsumerWidget {
                 columns: 2,
                 spacing: 8,
                 children: [
-                  const _MobileStat(
+                  _MobileStat(
                     label: 'Tài sản',
-                    value: DemoData.totalAssets,
+                    value: stats.totalAssets,
                     tone: FlTone.success,
                   ),
-                  const _MobileStat(
+                  _MobileStat(
                     label: 'Đã kiểm',
-                    value: DemoData.auditedAssets,
+                    value: stats.auditedAssets,
                     tone: FlTone.success,
                   ),
-                  const _MobileStat(
+                  _MobileStat(
                     label: 'Cần xử lý',
-                    value: DemoData.needsCheck,
+                    value: stats.needsCheck,
                     tone: FlTone.warning,
                   ),
                   _MobileStat(
@@ -674,6 +773,15 @@ class MobileDashboard extends ConsumerWidget {
                 ),
               ),
               const Gap(24),
+              if (drafts.isNotEmpty) ...[
+                const SectionLabel('Bản nháp chờ ký'),
+                const Gap(10),
+                for (final r in drafts) ...[
+                  _MobileRecentAudit(record: r),
+                  const Gap(8),
+                ],
+                const Gap(16),
+              ],
               const SectionLabel('Hoạt động gần đây'),
               const Gap(10),
               if (records.isEmpty)
@@ -740,15 +848,15 @@ class _MobileStat extends StatelessWidget {
   }
 }
 
-class _MobileRecentAudit extends StatelessWidget {
+class _MobileRecentAudit extends ConsumerWidget {
   const _MobileRecentAudit({required this.record});
 
   final AuditRecordModel record;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final t = record.timestamp ?? DateTime.now();
-    return FlCard(
+    final card = FlCard(
       padding: const EdgeInsets.all(14),
       child: Row(
         children: [
@@ -780,7 +888,9 @@ class _MobileRecentAudit extends StatelessWidget {
                 ),
                 const Gap(4),
                 Text(
-                  '${record.quantity} thiết bị  ·  ${record.isSynced ? 'Đã đồng bộ' : 'Lưu ngoại tuyến'}',
+                  record.isDraft
+                      ? '${record.quantity} thiết bị  ·  Bản nháp, chạm để ký'
+                      : '${record.quantity} thiết bị  ·  ${record.isSynced ? 'Đã đồng bộ' : 'Lưu ngoại tuyến'}',
                   style: const TextStyle(fontSize: 12, color: FlColors.muted),
                 ),
                 const Gap(4),
@@ -791,8 +901,23 @@ class _MobileRecentAudit extends StatelessWidget {
               ],
             ),
           ),
+          if (record.isDraft)
+            IconButton(
+              tooltip: 'Xoá bản nháp',
+              onPressed: () => confirmDeleteDraft(context, ref, record),
+              icon: const Icon(
+                Icons.delete_outline_rounded,
+                color: FlColors.muted,
+              ),
+            ),
         ],
       ),
+    );
+    if (!record.isDraft) return card;
+    return InkWell(
+      borderRadius: BorderRadius.circular(FlRadius.card),
+      onTap: () => resumeDraft(context, record),
+      child: card,
     );
   }
 }

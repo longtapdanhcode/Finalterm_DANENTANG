@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 
-import 'package:field_inventory_edge_ai/core/data/demo_data.dart';
 import 'package:field_inventory_edge_ai/core/theme/fieldline_theme.dart';
 import 'package:field_inventory_edge_ai/core/utils/responsive_layout.dart';
 import 'package:field_inventory_edge_ai/core/widgets/fieldline_widgets.dart';
@@ -11,6 +10,8 @@ import 'package:field_inventory_edge_ai/features/offline_audit/data/models/audit
 import 'package:field_inventory_edge_ai/features/offline_audit/presentation/audit_actions.dart';
 import 'package:field_inventory_edge_ai/features/offline_audit/presentation/controllers/audit_records_provider.dart';
 
+import '../../domain/audit_stats.dart';
+import '../controllers/audit_stats_provider.dart';
 import 'dashboard_screen.dart' show auditCode, auditTitle;
 
 /// Màn hình Báo cáo kiểm kê (Figma 06 / M07).
@@ -26,7 +27,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final records = ref.watch(auditRecordsProvider).value ?? const [];
+    // Báo cáo chỉ gồm phiếu chính thức (đã ký); bản nháp không hiện ở đây.
+    final records = ref.watch(reportRecordsProvider);
     return ResponsiveLayout.isDesktop(context)
         ? _buildDesktop(records)
         : _buildMobile(records);
@@ -34,10 +36,11 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
 
   Widget _buildDesktop(List<AuditRecordModel> records) {
     final now = DateTime.now();
-    final period = 'Tháng ${now.month}/${now.year}';
+    final stats = ref.watch(reportStatsProvider);
+    final period = stats.periodLabel;
     final areas = _area == null
-        ? DemoData.areas
-        : DemoData.areas.where((a) => a.name == _area).toList();
+        ? stats.areas
+        : stats.areas.where((a) => a.name == _area).toList();
 
     final filterCard = FlCard(
       padding: const EdgeInsets.fromLTRB(24, 18, 24, 18),
@@ -46,16 +49,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
         children: [
           Expanded(
             flex: 3,
-            child: _Labeled(
-              label: 'Kỳ báo cáo',
-              child: DropdownButtonFormField<String>(
-                initialValue: period,
-                isExpanded: true,
-                decoration: const InputDecoration(),
-                items: [DropdownMenuItem(value: period, child: Text(period))],
-                onChanged: (_) {},
-              ),
-            ),
+            child: _Labeled(label: 'Kỳ báo cáo', child: _PeriodDropdown()),
           ),
           const Gap(20),
           Expanded(
@@ -71,7 +65,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                     value: null,
                     child: Text('Tất cả khu vực'),
                   ),
-                  for (final a in DemoData.areas)
+                  for (final a in stats.areas)
                     DropdownMenuItem(value: a.name, child: Text(a.name)),
                 ],
                 onChanged: (v) => setState(() => _area = v),
@@ -79,10 +73,6 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
             ),
           ),
           const Spacer(flex: 4),
-          FilledButton(
-            onPressed: () => showFlSnack(context, 'Đã áp dụng bộ lọc $period.'),
-            child: const Text('Áp dụng bộ lọc'),
-          ),
         ],
       ),
     );
@@ -121,7 +111,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                 ),
                 const Gap(10),
                 Text(
-                  '${DemoData.auditedAssets} / ${flNumber(DemoData.totalAssets)} tài sản đã kiểm kê',
+                  '${flNumber(stats.auditedAssets)} / ${flNumber(stats.totalAssets)} tài sản đã kiểm kê',
                   style: const TextStyle(fontSize: 12, color: FlColors.muted),
                 ),
                 const Gap(10),
@@ -151,9 +141,13 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const CardHeader(
+          CardHeader(
             title: 'Xem trước biên bản',
-            trailing: StatusPill(label: 'A4 • 2 trang', tone: FlTone.neutral),
+            trailing: TextButton.icon(
+              onPressed: () => context.go('/reports/preview'),
+              icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),
+              label: const Text('Xem PDF đầy đủ'),
+            ),
           ),
           const Gap(18),
           Container(
@@ -162,7 +156,11 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
               color: FlColors.track,
               borderRadius: BorderRadius.circular(FlRadius.control),
             ),
-            child: _ReportPaper(areas: areas, period: period),
+            child: _ReportPaper(
+              areas: areas,
+              period: period,
+              scope: _area ?? 'Toàn bộ nhà máy',
+            ),
           ),
         ],
       ),
@@ -189,9 +187,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
 
   Widget _buildMobile(List<AuditRecordModel> records) {
     final pending = ref.watch(pendingSyncCountProvider);
-    const progress = DemoData.auditedAssets / DemoData.totalAssets;
-    const discrepancy = DemoData.discrepancies;
-    const matched = DemoData.auditedAssets - discrepancy;
+    final stats = ref.watch(reportStatsProvider);
+    final progress = stats.progress;
 
     return MobilePage(
       title: 'Báo cáo kiểm kê',
@@ -201,6 +198,14 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
         onPressed: () => exportPdfReport(context, ref),
       ),
       children: [
+        const _Labeled(label: 'Kỳ báo cáo', child: _PeriodDropdown()),
+        const Gap(10),
+        OutlinedButton.icon(
+          onPressed: () => context.go('/reports/preview'),
+          icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),
+          label: const Text('Xem trước PDF (cả chữ ký)'),
+        ),
+        const Gap(14),
         FlCard(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -219,14 +224,16 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
               ),
               const Gap(6),
               Text(
-                '${DemoData.auditedAssets} / ${flNumber(DemoData.totalAssets)} tài sản đã kiểm',
+                '${flNumber(stats.auditedAssets)} / ${flNumber(stats.totalAssets)} tài sản đã kiểm',
                 style: const TextStyle(fontSize: 13, color: FlColors.muted),
               ),
               const Gap(14),
-              const FlProgressBar(value: progress, height: 9),
+              FlProgressBar(value: progress, height: 9),
               const Gap(14),
               Text(
-                'Còn ${DemoData.totalAssets - DemoData.auditedAssets} tài sản cần kiểm kê',
+                stats.notAudited == 0
+                    ? 'Đã kiểm kê hết danh mục ${stats.periodLabel.toLowerCase()}'
+                    : 'Còn ${flNumber(stats.notAudited)} tài sản cần kiểm kê',
                 style: const TextStyle(fontSize: 12, color: FlColors.primary),
               ),
             ],
@@ -239,14 +246,18 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
           columns: 3,
           spacing: 12,
           children: [
-            _MetricTile(count: matched, label: 'Đã khớp', tone: FlTone.success),
-            const _MetricTile(
-              count: discrepancy,
+            _MetricTile(
+              count: stats.matched,
+              label: 'Đã khớp',
+              tone: FlTone.success,
+            ),
+            _MetricTile(
+              count: stats.discrepancies,
               label: 'Sai lệch',
               tone: FlTone.warning,
             ),
-            const _MetricTile(
-              count: DemoData.notAudited,
+            _MetricTile(
+              count: stats.notAudited,
               label: 'Chưa kiểm',
               tone: FlTone.info,
             ),
@@ -370,6 +381,29 @@ class _Labeled extends StatelessWidget {
   }
 }
 
+/// Chọn tháng của kỳ báo cáo; chỉ liệt kê các tháng có phiếu (và tháng hiện tại).
+class _PeriodDropdown extends ConsumerWidget {
+  const _PeriodDropdown();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final periods = ref.watch(availableReportPeriodsProvider);
+    final period = ref.watch(reportPeriodProvider);
+    return DropdownButtonFormField<DateTime>(
+      key: ValueKey(period),
+      initialValue: period,
+      isExpanded: true,
+      decoration: const InputDecoration(),
+      items: [
+        for (final m in periods)
+          DropdownMenuItem(value: m, child: Text(AuditStats.labelOf(m))),
+      ],
+      onChanged: (m) =>
+          ref.read(selectedReportPeriodProvider.notifier).select(m),
+    );
+  }
+}
+
 class _ReportListItem extends StatelessWidget {
   const _ReportListItem({required this.record});
 
@@ -422,10 +456,15 @@ class _ReportListItem extends StatelessWidget {
 
 /// Trang giấy A4 xem trước biên bản kiểm kê.
 class _ReportPaper extends StatelessWidget {
-  const _ReportPaper({required this.areas, required this.period});
+  const _ReportPaper({
+    required this.areas,
+    required this.period,
+    required this.scope,
+  });
 
-  final List<DemoArea> areas;
+  final List<AreaProgress> areas;
   final String period;
+  final String scope;
 
   @override
   Widget build(BuildContext context) {
@@ -433,7 +472,7 @@ class _ReportPaper extends StatelessWidget {
     const cell = TextStyle(fontSize: 10, color: FlColors.ink);
     final planned = areas.fold(0, (s, a) => s + a.planned);
     final done = areas.fold(0, (s, a) => s + a.done);
-    final diff = areas.fold(0, (s, a) => s + a.discrepancy);
+    final diff = areas.fold(0, (s, a) => s + a.discrepancies);
 
     Widget row(List<Widget> cells, {Color? color, bool divider = true}) =>
         Container(
@@ -483,11 +522,11 @@ class _ReportPaper extends StatelessWidget {
           const Gap(10),
           Text('Kỳ báo cáo: $period', style: small),
           const Gap(20),
-          const Align(
+          Align(
             alignment: Alignment.centerLeft,
             child: Text(
-              'Phạm vi: Toàn bộ nhà máy • Người lập: Hoàng An',
-              style: TextStyle(fontSize: 11),
+              'Phạm vi: $scope • Người lập: Hoàng An',
+              style: const TextStyle(fontSize: 11),
             ),
           ),
           const Gap(14),
@@ -514,7 +553,7 @@ class _ReportPaper extends StatelessWidget {
               Text(a.name, style: cell),
               Text('${a.planned}', style: cell),
               Text('${a.done}', style: cell),
-              Text('${a.discrepancy}', style: cell),
+              Text('${a.discrepancies}', style: cell),
             ]),
           const Gap(8),
           row([
@@ -555,7 +594,7 @@ class _ReportPaper extends StatelessWidget {
           ),
           const Gap(30),
           const Text(
-            'Trang 1 / 2',
+            'Trang 1',
             style: TextStyle(fontSize: 9, color: FlColors.muted),
           ),
         ],
