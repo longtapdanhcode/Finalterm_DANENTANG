@@ -15,7 +15,7 @@
   - Thiết bị: Tủ điện, Aptomat, Ghế, Bàn, Máy chiếu
   - Hư hỏng: Vết nứt, Gỉ sét, Thấm nước, Khuyết tật kim loại
 
-  AI vẫn nhận diện được khi khung hình không có QR. Màn quét có thẻ **chẩn đoán AI**.
+  Trên iOS, mô hình chạy bằng **GPU (Metal)**, mỗi lượt nhận diện mất khoảng 0,3 giây. AI chỉ đọc phần ảnh **trong khung xanh**, và vẫn nhận diện được khi khung hình không có QR. Màn quét có thẻ **chẩn đoán AI** hiện thời gian xử lý và phần cứng đang dùng (GPU/CPU).
 - **Phiếu kiểm kê**: tên tài sản, loại, khu vực, vị trí, tình trạng, số lượng, ghi chú, **ảnh minh chứng** (`image_picker`). Phiếu chưa ký được lưu thành **bản nháp**: bản nháp không đồng bộ, không vào báo cáo, có thể mở lại để ký hoặc xoá.
 - **Ký xác nhận** trên canvas (lưu tên và chức vụ người ký), xuất ảnh PNG.
 - **Offline-first**: mọi phiếu lưu vào Isar trước.
@@ -36,7 +36,7 @@
 | State | `flutter_riverpod` + `riverpod_generator` |
 | Routing | `go_router` (auth redirect, `ShellRoute`) |
 | Camera / Scanner | `mobile_scanner` 7.4.2 (**bản vá cục bộ** trong `third_party/`), `permission_handler` |
-| Edge AI | `tflite_flutter`, `image` — YOLO, input 640×640 |
+| Edge AI | `tflite_flutter` (GPU delegate Metal trên iOS) — YOLOv8s, input 640×640 |
 | Local DB | `isar_plus` |
 | Backend | `supabase_flutter` (Postgres + RLS, Auth, Storage) |
 | Mạng | `connectivity_plus`, `http` |
@@ -94,13 +94,23 @@ docs/kiem-thu/              # Biên bản kiểm thử thủ công
 
 ### Pipeline Edge AI
 
-- **Mô hình:** YOLO (`best.pt`) đã chuyển sang TFLite.
+- **Mô hình:** YOLOv8s (`best-new.pt`, huấn luyện ở 640) xuất sang TFLite float32 bằng LiteRT.
   - Input: `1×3×640×640` (NCHW).
   - Output: `1×(4+9)×8400` gồm `cx, cy, w, h` rồi đến điểm của từng lớp.
+  - So với model trước (`best.pt`, huấn luyện ở 800): mAP50-95 tập val từ 0.576 lên **0.761**, mAP50 từ 0.793 lên **0.855**, recall từ 0.760 lên **0.807**. Hai lần huấn luyện dùng tập dữ liệu khác nhau nên các số này chỉ để tham khảo.
+- **Phần cứng chạy:** iOS dùng **GPU delegate Metal** (cho phép FP16). Nếu Metal lỗi, app tự chuyển sang CPU 4 luồng. Đo trên iPhone 11 Pro Max: phần mô hình mất 98–153 ms (CPU cũ mất vài giây).
+- **Tiền xử lý:** AI chỉ nhận ô vuông giữa khung hình, cạnh bằng 70% cạnh ngắn (`AiConfig.cropFraction`), khớp với khung xanh trên màn quét.
+  - iOS: bản vá `mobile_scanner` cắt và thu nhỏ ô này về RGB 640×640 bằng CoreGraphics, gửi sang Dart qua khóa `aiInput`. Dart chỉ còn đổi mảng này sang tensor.
+  - Nền tảng khác: giải mã JPEG bằng `dart:ui` (thu nhỏ ngay lúc giải mã), rồi cắt ô giữa.
 - **Ngưỡng tin cậy:** `0.5` cho thiết bị, `0.7` cho nhóm hư hỏng (lớp 0, 1, 2, 5). Nhóm hư hỏng dùng ngưỡng cao hơn vì ma trận nhầm lẫn cho thấy các lớp này báo nhầm nhiều ở vùng nền.
 - **Bảo vệ CPU:** nếu AI đang xử lý thì bỏ qua (drop) frame mới.
-- **Bản vá `mobile_scanner` (iOS/macOS):** plugin gốc bỏ qua frame không có mã. Bản vá vẫn gửi frame (khoảng 2 frame/giây) để AI chạy được khi không có QR.
+- **Bản vá `mobile_scanner` (iOS/macOS):**
+  1. Plugin gốc bỏ qua frame không có mã. Bản vá vẫn gửi frame (khoảng 2 frame/giây) để AI chạy được khi không có QR.
+  2. Gửi kèm `aiInput` (ảnh 640×640 đã cắt theo khung quét) như mô tả ở trên.
+
+  Chi tiết xem `third_party/mobile_scanner/PATCH_NOTES.md`.
   > ⚠️ Android **chưa vá**, nên trên Android AI chỉ chạy khi camera thấy mã.
+- **Hạn chế đã biết:** model hiện tại thiên về lớp **Aptomat**. Máy chiếu và tủ điện đóng cửa thường bị báo là Aptomat với độ tin cậy 90–95%, vết nứt đôi khi bị báo là Thấm nước. Cần bổ sung ảnh máy chiếu, tủ điện, vết nứt và cân bằng số ảnh giữa các lớp rồi huấn luyện lại.
 
 ### Dữ liệu
 
@@ -215,6 +225,7 @@ Biên bản kiểm thử thủ công nằm trong `docs/kiem-thu/`.
 | 7 | 20–22 | Danh mục tài sản thật, thêm/sửa & xuất PDF, số liệu thật cho Tổng quan/Báo cáo |
 | 8 | 23–25 | Ảnh minh chứng, tự động đồng bộ, đối chiếu xung đột tài sản |
 | 9 | 26–28 | Supabase Auth + RLS, màn Địa điểm & Cài đặt, bản web quản lý |
+| 10 | — | Model YOLOv8s mới, Edge AI chạy GPU Metal, cắt ảnh theo khung quét ở phía native |
 
 ## Quy trình Git
 
