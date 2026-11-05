@@ -50,3 +50,6 @@ app.*.map.json
 # Internal planning files
 commit_sprints.sh
 git_sprint_commit_plan.md
+
+# Cấu hình Supabase của từng máy (dùng lib/core/network/supabase_config.dart.example làm mẫu)
+lib/core/network/supabase_config.dart
