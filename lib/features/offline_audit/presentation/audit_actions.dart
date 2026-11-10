@@ -5,8 +5,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:printing/printing.dart';
 
 import 'package:field_inventory_edge_ai/core/network/connectivity_provider.dart';
+import 'package:field_inventory_edge_ai/core/platform/app_mode.dart';
 import 'package:field_inventory_edge_ai/core/widgets/fieldline_widgets.dart';
 import 'package:field_inventory_edge_ai/features/asset_catalog/presentation/controllers/asset_catalog_providers.dart';
+import 'package:field_inventory_edge_ai/features/cloud_console/cloud_refresh.dart';
 
 import 'package:field_inventory_edge_ai/core/utils/pdf_report_generator.dart';
 import 'package:field_inventory_edge_ai/features/offline_audit/data/evidence_photo_store.dart';
@@ -17,6 +19,11 @@ import 'package:field_inventory_edge_ai/features/offline_audit/presentation/cont
 
 /// Kích hoạt đồng bộ dữ liệu ngoại tuyến lên Supabase Cloud.
 Future<void> triggerSync(BuildContext context, WidgetRef ref) async {
+  if (!ref.read(appModeProvider).canScan) {
+    await refreshCloudData(context, ref);
+    return;
+  }
+
   final syncState = ref.read(syncControllerProvider);
   if (syncState.isLoading) return;
 

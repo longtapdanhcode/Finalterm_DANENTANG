@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'dart:typed_data';
 
 import 'package:field_inventory_edge_ai/core/network/connectivity_provider.dart';
+import 'package:field_inventory_edge_ai/core/platform/app_mode.dart';
 import 'package:field_inventory_edge_ai/features/asset_catalog/data/models/asset_model.dart';
 import 'package:field_inventory_edge_ai/features/asset_catalog/domain/repositories/asset_catalog_repository.dart';
 import 'package:field_inventory_edge_ai/features/offline_audit/data/models/audit_record_model.dart';
@@ -12,6 +13,7 @@ import 'package:field_inventory_edge_ai/features/offline_audit/data/repositories
 import 'package:field_inventory_edge_ai/features/offline_audit/data/repositories/supabase_sync_repository_impl.dart';
 import 'package:field_inventory_edge_ai/features/offline_audit/domain/repositories/audit_repository.dart';
 import 'package:field_inventory_edge_ai/features/offline_audit/domain/repositories/sync_repository.dart';
+import 'package:field_inventory_edge_ai/features/offline_audit/presentation/controllers/audit_records_provider.dart';
 import 'package:field_inventory_edge_ai/features/asset_catalog/domain/entities/asset_status.dart';
 import 'package:field_inventory_edge_ai/features/asset_catalog/presentation/controllers/asset_catalog_providers.dart';
 import 'package:field_inventory_edge_ai/features/asset_catalog/presentation/screens/assets_screen.dart';
@@ -178,4 +180,35 @@ void main() {
       );
     },
   );
+
+  for (final size in [const Size(390, 844), const Size(1440, 1000)]) {
+    testWidgets('Web catalog reload does not use Isar at width ${size.width}', (
+      tester,
+    ) async {
+      tester.view.physicalSize = size;
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final catalog = _FakeCatalogRepository();
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            appModeProvider.overrideWithValue(AppMode.console),
+            assetsProvider.overrideWith((ref) => Stream.value(const [])),
+            assetCatalogRepositoryProvider.overrideWithValue(catalog),
+            auditRecordsProvider.overrideWith((ref) => Stream.value(const [])),
+          ],
+          child: const MaterialApp(home: Scaffold(body: AssetsScreen())),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Đồng bộ danh mục').first);
+      await tester.pumpAndSettle();
+
+      expect(catalog.syncCalls, 1);
+      expect(find.text('Đã tải lại: 0 phiếu, 0 tài sản.'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  }
 }

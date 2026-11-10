@@ -17,13 +17,10 @@ subprojects {
 }
 subprojects {
     project.evaluationDependsOn(":app")
-}
 
-// tflite_flutter 0.12.1 đặt Java 11 nhưng để Kotlin theo mặc định (17), Gradle
-// báo "Inconsistent JVM Target Compatibility". Cho Kotlin của plugin này về 11.
-subprojects {
+    // tflite_flutter targets Java 11; Kotlin must not inherit the host JDK version.
     if (name == "tflite_flutter") {
-        tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+        tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile>().configureEach {
             compilerOptions.jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
         }
     }

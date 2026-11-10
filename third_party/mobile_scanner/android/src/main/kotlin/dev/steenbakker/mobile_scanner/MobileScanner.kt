@@ -7,6 +7,7 @@ import android.media.Image
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.util.Log
 import android.util.Size
 import android.view.Surface
@@ -76,6 +77,7 @@ class MobileScanner(
     @VisibleForTesting
     internal var scanner: BarcodeScanner? = null
     private var lastScanned: List<String?>? = null
+    private var lastEmptyFrameTime: Long? = null
     private var scannerTimeout = false
     private var imageAnalysis: ImageAnalysis? = null
     private var analysisExecutor = Executors.newSingleThreadExecutor()
@@ -205,8 +207,14 @@ class MobileScanner(
                     }
 
                     if (barcodeMap.isEmpty()) {
-                        releaseFrame()
-                        return@addOnSuccessListener
+                        // Edge AI also needs images without codes; cap those events at 2 fps.
+                        val now = SystemClock.elapsedRealtime()
+                        val previous = lastEmptyFrameTime
+                        if (!returnImage || (previous != null && now - previous < 500)) {
+                            releaseFrame()
+                            return@addOnSuccessListener
+                        }
+                        lastEmptyFrameTime = now
                     }
 
                     val portrait = (camera?.cameraInfo?.sensorRotationDegrees ?: 0) % 180 == 0
@@ -444,6 +452,7 @@ class MobileScanner(
         isPaused = false
 
         lastScanned = null
+        lastEmptyFrameTime = null
         scanner = barcodeScannerFactory(barcodeScannerOptions)
 
         val cameraProviderFuture = ProcessCameraProvider.getInstance(activity)
