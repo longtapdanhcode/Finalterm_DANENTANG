@@ -1,8 +1,8 @@
 class AiConfig {
   const AiConfig._();
 
-  /// Mô hình YOLO (best.pt) đã xuất sang TFLite, đầu vào 1x3x640x640 (NCHW),
-  /// đầu ra 1x(4+số lớp)x8400: cx, cy, w, h (chuẩn hoá 0..1) rồi điểm từng lớp.
+  /// YOLOv8s từ DinoResults.zip, đầu vào 1x3x640x640 (NCHW),
+  /// đầu ra 1x(4+số lớp)x8400: cx, cy, w, h (pixel) rồi điểm từng lớp.
   static const String modelPath = 'assets/models/object_detection.tflite';
 
   /// Nhãn hiển thị, đúng thứ tự lớp lúc huấn luyện:

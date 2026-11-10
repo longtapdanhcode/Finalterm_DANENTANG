@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace = "com.example.field_inventory_edge_ai"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
     compileOptions {

@@ -101,23 +101,26 @@ Tất cả màn hình đều đã hoàn thành. App hiện trường (iOS / Andr
 
 ### Pipeline Edge AI
 
-- **Mô hình:** YOLOv8s (`best-new.pt`, huấn luyện ở 640) xuất sang TFLite float32 bằng LiteRT.
+- **Mô hình:** YOLOv8s từ `DinoResults.zip`, checkpoint `runs/finetune_best_bo_da_sua/weights/best.pt`, huấn luyện ở 640. Đã thay `assets/models/object_detection.tflite` bằng bản TFLite float32 xuất qua ONNX (Ultralytics 8.4.183, ONNX opset 13, onnx2tf 2.6.9).
   - Input: `1×3×640×640` (NCHW).
-  - Output: `1×(4+9)×8400` gồm `cx, cy, w, h` rồi đến điểm của từng lớp.
-  - So với model trước (`best.pt`, huấn luyện ở 800): mAP50-95 tập val từ 0.576 lên **0.761**, mAP50 từ 0.793 lên **0.855**, recall từ 0.760 lên **0.807**. Hai lần huấn luyện dùng tập dữ liệu khác nhau nên các số này chỉ để tham khảo.
-- **Phần cứng chạy:** iOS dùng **GPU delegate Metal** (cho phép FP16). Nếu Metal lỗi, app tự chuyển sang CPU 4 luồng. Đo trên iPhone 11 Pro Max: phần mô hình mất 98–153 ms (CPU cũ mất vài giây).
+  - Output: `1×(4+9)×8400` gồm `cx, cy, w, h` theo pixel rồi đến điểm của từng lớp. Giữ nguyên thứ tự 9 lớp và nhãn tiếng Việt.
+  - Theo `metrics_comparison.json` trong ZIP: trên cùng tập val đã sửa nhãn, mAP50-95 từ **0.6731 → 0.7614**, mAP50 từ **0.7838 → 0.8787**. Model mới trên tập test: mAP50 **0.8507**, mAP50-95 **0.6941**. Model cũ trong phép so sánh này là `best_before.pt` của ZIP.
+  - Đã đối chiếu TFLite với checkpoint FP32 trên ảnh rỗng, đầu vào ngẫu nhiên và ảnh validation trong ZIP: sai lệch điểm lớp lớn nhất **0.00000385**. Đây là kiểm tra chuyển đổi, không phải phép đo độ chính xác ngoài hiện trường.
+  - SHA256 checkpoint: `7bc8924a9619d60d4835bc71e4be853a554a94a76017bae0fe1a5b52b6785c2f`.
+  - SHA256 TFLite: `6c10c23227faec7335d4049037a63b394ac39e75cda79ac7b2eaef4208fda6df`.
+- **Phần cứng chạy:** iOS dùng **GPU delegate Metal** (cho phép FP16). Nếu Metal lỗi, app tự chuyển sang CPU 4 luồng. Chưa đo tốc độ model mới trên điện thoại thật.
 - **Tiền xử lý:** AI chỉ nhận ô vuông giữa khung hình, cạnh bằng 70% cạnh ngắn (`AiConfig.cropFraction`), khớp với khung xanh trên màn quét.
   - iOS: bản vá `mobile_scanner` cắt và thu nhỏ ô này về RGB 640×640 bằng CoreGraphics, gửi sang Dart qua khóa `aiInput`. Dart chỉ còn đổi mảng này sang tensor.
   - Nền tảng khác: giải mã JPEG bằng `dart:ui` (thu nhỏ ngay lúc giải mã), rồi cắt ô giữa.
 - **Ngưỡng tin cậy:** `0.5` cho thiết bị, `0.7` cho nhóm hư hỏng (lớp 0, 1, 2, 5). Nhóm hư hỏng dùng ngưỡng cao hơn vì ma trận nhầm lẫn cho thấy các lớp này báo nhầm nhiều ở vùng nền.
 - **Bảo vệ CPU:** nếu AI đang xử lý thì bỏ qua (drop) frame mới.
-- **Bản vá `mobile_scanner` (iOS/macOS):**
+- **Bản vá `mobile_scanner` (iOS/macOS và Android):**
   1. Plugin gốc bỏ qua frame không có mã. Bản vá vẫn gửi frame (khoảng 2 frame/giây) để AI chạy được khi không có QR.
-  2. Gửi kèm `aiInput` (ảnh 640×640 đã cắt theo khung quét) như mô tả ở trên.
+  2. iOS/macOS gửi kèm `aiInput` (ảnh 640×640 đã cắt theo khung quét) như mô tả ở trên.
 
   Chi tiết xem `third_party/mobile_scanner/PATCH_NOTES.md`.
-  > ⚠️ Android **chưa vá**, nên trên Android AI chỉ chạy khi camera thấy mã.
-- **Hạn chế đã biết:** model hiện tại thiên về lớp **Aptomat**. Máy chiếu và tủ điện đóng cửa thường bị báo là Aptomat với độ tin cậy 90–95%, vết nứt đôi khi bị báo là Thấm nước. Cần bổ sung ảnh máy chiếu, tủ điện, vết nứt và cân bằng số ảnh giữa các lớp rồi huấn luyện lại.
+  - Android cũng gửi ảnh khi không thấy mã (tối đa 2 khung/giây), dùng đường xử lý JPEG của Dart.
+- **Hạn chế dữ liệu:** theo `training_data_info.json`, phần lớn nhãn (kể cả val/test) do AI tạo và chưa được người kiểm tra đầy đủ. Lớp Tủ điện chỉ có 61 đối tượng train, 5 val, 12 test; cần kiểm tra thêm bằng ảnh thực tế. Giữ ngưỡng nhận diện hiện tại cho đến khi có kết quả hiệu chỉnh trên thiết bị.
 
 ### Dữ liệu
 
@@ -190,14 +193,13 @@ flutter run -d chrome       # bản web (trung tâm quản lý)
 
 - **iOS:**
   - Impeller đã được tắt trong `Info.plist` (`FLTEnableImpeller = false`) để tránh màn hình camera bị đen. Khi chạy CLI có thể thêm `--no-enable-impeller`.
-  - Quyền camera đã khai báo qua `NSCameraUsageDescription`.
+  - Đã khai báo quyền camera (`NSCameraUsageDescription`) và thư viện ảnh minh chứng (`NSPhotoLibraryUsageDescription`).
 - **Android:**
-  - Đã khai báo quyền `CAMERA`.
-  - Theo biên bản kiểm thử Sprint 6 có 2 lỗi build còn mở:
-    1. `tflite_flutter` lệch JVM target (11 so với 17).
-    2. `permission_handler_android` yêu cầu `compileSdk >= 37`.
-
-    Chi tiết xem `docs/kiem-thu/sprint6-card19.md`.
+  - Đã khai báo quyền `CAMERA` và `INTERNET` cho cả bản debug và release.
+  - App dùng `compileSdk = 37`; cần cài Android SDK Platform 37.
+  - Kotlin của `tflite_flutter` dùng JVM target 11 để khớp Java của plugin, không phụ thuộc JDK trên máy.
+  - Tắt Kotlin incremental compilation để tránh lỗi cache khi project và Pub cache nằm ở hai ổ đĩa Windows khác nhau.
+  - Các lỗi từng gặp ở Sprint 6 được lưu trong `docs/kiem-thu/sprint6-card19.md`.
 - **Web:** không có camera, AI hay lưu ngoại tuyến (xem phần Bản web ở trên).
 
 ## Kiểm thử
