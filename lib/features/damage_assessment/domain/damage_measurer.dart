@@ -63,14 +63,13 @@ class FrameMeasurement {
   bool get isEmpty => measurements.isEmpty;
 }
 
-/// Quy đổi khung phát hiện của AI ra khối lượng hư hỏng.
+/// Quy đổi vùng phát hiện của AI ra khối lượng hư hỏng.
 ///
-/// Với model phát hiện (chỉ có khung chữ nhật):
-/// - Diện tích ≈ diện tích khung × [blobFill] (mặc định π/4: hình elip nội
-///   tiếp khung), vì vùng thấm, gỉ hiếm khi lấp kín khung.
-/// - Vết nứt: chiều dài ≈ đường chéo khung.
-/// Đây là ước lượng; người kiểm kê sửa lại được trên phiếu. Model phân vùng
-/// sẽ thay bằng diện tích và chiều dài theo mask.
+/// - Có mask (model phân vùng): diện tích theo số điểm mask, vết nứt dài theo
+///   phần mask thật ([Detection.maskArea], [Detection.maskLength]).
+/// - Chỉ có khung (model phát hiện): diện tích ≈ khung × [blobFill] (mặc định
+///   π/4: hình elip nội tiếp khung); vết nứt dài ≈ đường chéo khung.
+/// Đây là ước lượng; người kiểm kê sửa lại được trên phiếu.
 class DamageMeasurer {
   const DamageMeasurer({
     required this.cropFraction,
@@ -105,8 +104,8 @@ class DamageMeasurer {
       var quantity = 0.0;
       if (canMeasure) {
         quantity = type.unit == MeasureUnit.meter
-            ? math.sqrt(d.w * d.w + d.h * d.h) * cropSideM
-            : d.w * d.h * blobFill * cropSideM * cropSideM;
+            ? (d.maskLength ?? math.sqrt(d.w * d.w + d.h * d.h)) * cropSideM
+            : (d.maskArea ?? d.w * d.h * blobFill) * cropSideM * cropSideM;
       }
       out.add(
         DamageMeasurement(

@@ -44,14 +44,14 @@ Khi thêm màn hình hoặc provider dùng cho cả hai nền tảng, hãy đưa
 - Danh mục tài sản (`features/asset_catalog`) lưu `baseJson` / `conflictJson` trên `AssetModel` để đối chiếu 3 bên (`domain/asset_merge.dart`); xung đột hiện ở `/sync/conflicts`.
 
 ### Pipeline Edge AI (`features/edge_vision`, `core/ai_pipeline/ai_config.dart`)
-- Mô hình `assets/models/object_detection.tflite`, input 1×3×640×640 (NCHW), output 1×13×8400 (cx, cy, w, h + điểm của 9 lớp; nhãn trong `labels.txt`).
-- Chỉ ô vuông giữa khung hình (`AiConfig.cropFraction` = 70% cạnh ngắn, khớp khung xanh trên màn quét) được đưa vào mô hình. Ngưỡng tin cậy: 0.5 cho thiết bị, 0.7 cho nhóm hư hỏng (lớp 0, 1, 2, 5). Frame mới bị bỏ qua khi AI đang xử lý.
+- Mô hình `assets/models/object_detection.tflite` là YOLOv8n-seg 4 lớp (vết nứt, thấm/mốc, bong sơn, gỉ sét; nhãn trong `labels.txt`). Input 1×3×640×640 (NCHW); output 1×40×8400 (cx, cy, w, h + điểm 4 lớp + 32 hệ số mask) và proto 1×32×160×160. `ModelOutputLayout` suy bố cục từ shape lúc nạp (model chỉ phát hiện khung vẫn chạy); `MaskPrototypes` tính mask trong khung để ra diện tích / chiều dài.
+- Chỉ ô vuông giữa khung hình (`AiConfig.cropFraction` = 70% cạnh ngắn, khớp khung xanh trên màn quét) được đưa vào mô hình. Ngưỡng tin cậy chung 0.4. Frame mới bị bỏ qua khi AI đang xử lý.
 - iOS chạy bằng GPU delegate Metal, lỗi thì tự chuyển sang CPU.
 - `mobile_scanner` là **bản vá cục bộ** trong `third_party/mobile_scanner` (khai báo qua `dependency_overrides` trong pubspec). Bản vá iOS/macOS vẫn gửi frame khi không có mã (~2 frame/giây) và gửi kèm khoá `aiInput` chứa ảnh RGB 640×640 đã cắt sẵn. Android **chưa vá** (AI chỉ chạy khi camera thấy mã). Đọc `third_party/mobile_scanner/PATCH_NOTES.md` trước khi sửa.
 
 ### Đánh giá hư hỏng bề mặt và chi phí (`features/damage_assessment`)
 - Luồng: quét QR dán trên bề mặt (thẻ 10 cm, `AiConfig.markerSizeCm`) → `ScannerController._measure` chạy AI trên chính khung đó → `DamageMeasurer` quy khung phát hiện ra m²/mét theo cạnh thẻ QR → phiếu kiểm kê (`SurfaceAssessmentSection`) cho sửa số, nhập diện tích bề mặt → `DamageCalculator` tính chỉ số 0–100, mức độ, chi phí theo bảng đơn giá.
-- `AiConfig.damageTypeByClass` ánh xạ lớp model sang `DamageType`; đổi khi thay model phân vùng 4 lớp.
+- `AiConfig.damageTypeByClass` ánh xạ lớp model sang `DamageType`; đổi cùng `labels.txt` khi thay model. Có mask thì `DamageMeasurer` dùng `Detection.maskArea` / `maskLength`, không thì ước lượng theo khung.
 - Bảng đơn giá `repair_cost_rates` (chỉ admin sửa) được `RepairRateRepository` tải và lưu offline; không có thì dùng `sampleRepairRates` (giá minh hoạ, phải trùng `supabase/seed/repair_cost_rates_sample.sql`, có test kiểm tra).
 - Phiếu lưu `SurfaceAssessment` dạng JSON kèm đơn giá lúc kiểm kê (`AuditRecordModel.applyAssessment`), cùng `estimatedCost`, `damageIndex`.
 - `RepairCostSummary` gom chi phí theo tòa nhà (`area`) / phòng (`location`), lấy phiếu mới nhất của mỗi mã; dùng chung cho Tổng quan, Báo cáo và PDF. Màn `/repair-rates` cho admin sửa đơn giá (`RepairRateWriter`).

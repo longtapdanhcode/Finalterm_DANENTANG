@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -12,7 +13,72 @@ void main() {
       expect(AiConfig.modelPath, 'assets/models/object_detection.tflite');
       expect(AiConfig.labelPath, 'assets/models/labels.txt');
       expect(AiConfig.inputSize, 640);
-      expect(AiConfig.confidenceThreshold, 0.5);
+      expect(AiConfig.confidenceThreshold, 0.4);
+      expect(AiConfig.damageTypeByClass.length, 4);
+    });
+
+    test('labels.txt có đúng 4 nhãn theo thứ tự lớp của model', () {
+      final labels = File(AiConfig.labelPath)
+          .readAsLinesSync()
+          .where((l) => l.trim().isNotEmpty)
+          .toList();
+      expect(labels, [
+        'Vết nứt',
+        'Thấm nước / ẩm mốc',
+        'Bong tróc sơn',
+        'Gỉ sét',
+      ]);
+      for (final e in AiConfig.damageTypeByClass.entries) {
+        expect(labels[e.key], e.value.label);
+      }
+    });
+  });
+
+  group('ModelOutputLayout', () {
+    test('model phân vùng NCHW: hộp + 32 hệ số mask, proto 160', () {
+      final l = ModelOutputLayout.fromShapes([
+        [1, 40, 8400],
+        [1, 32, 160, 160],
+      ], 4)!;
+      expect(l.boxIndex, 0);
+      expect(l.protoIndex, 1);
+      expect(l.maskChannels, 32);
+      expect(l.protoSize, 160);
+      expect(l.protoChannelsLast, isFalse);
+      expect(l.anchors, 8400);
+    });
+
+    test('proto NHWC và thứ tự đầu ra đảo', () {
+      final l = ModelOutputLayout.fromShapes([
+        [1, 160, 160, 32],
+        [1, 40, 8400],
+      ], 4)!;
+      expect(l.boxIndex, 1);
+      expect(l.protoIndex, 0);
+      expect(l.protoChannelsLast, isTrue);
+    });
+
+    test('model phát hiện cũ 9 lớp vẫn nhận', () {
+      final l = ModelOutputLayout.fromShapes([
+        [1, 13, 8400],
+      ], 9)!;
+      expect(l.hasMasks, isFalse);
+      expect(l.channels, 13);
+    });
+
+    test('số nhãn không khớp đầu ra: từ chối', () {
+      expect(
+        ModelOutputLayout.fromShapes([
+          [1, 13, 8400],
+        ], 4),
+        isNull,
+      );
+      expect(
+        ModelOutputLayout.fromShapes([
+          [1, 40, 8400],
+        ], 9),
+        isNull,
+      );
     });
   });
 
@@ -30,19 +96,9 @@ void main() {
   });
 
   group('decodeDetections', () {
-    const labels = [
-      'Vết nứt',
-      'Gỉ sét',
-      'Thấm nước',
-      'Tủ điện',
-      'Aptomat',
-      'Khuyết tật kim loại',
-      'Ghế',
-      'Bàn',
-      'Máy chiếu',
-    ];
+    const labels = ['Vết nứt', 'Thấm nước / ẩm mốc', 'Bong tróc sơn', 'Gỉ sét'];
 
-    /// Đầu ra giả: 4 hàng hộp + 9 hàng điểm lớp, 3 ô dự đoán.
+    /// Đầu ra giả: 4 hàng hộp + 4 hàng điểm lớp, 3 ô dự đoán.
     List<List<double>> output(Map<int, List<double>> scores) => [
       for (var r = 0; r < 4; r++) [0.5, 0.5, 0.5],
       for (var c = 0; c < labels.length; c++) scores[c] ?? [0.0, 0.0, 0.0],
@@ -52,29 +108,18 @@ void main() {
       final result = TfliteVisionRepositoryImpl.decodeDetections(
         output({
           3: [0.2, 0.9, 0.6],
-          6: [0.8, 0.1, 0.0],
+          1: [0.8, 0.1, 0.0],
         }),
         labels,
       );
-      expect(result, ['Tủ điện (90.0%)', 'Ghế (80.0%)']);
-    });
-
-    test('nhóm hư hỏng dùng ngưỡng cao hơn thiết bị', () {
-      final result = TfliteVisionRepositoryImpl.decodeDetections(
-        output({
-          0: [0.6, 0.0, 0.0],
-          7: [0.6, 0.0, 0.0],
-        }),
-        labels,
-      );
-      expect(result, ['Bàn (60.0%)']);
+      expect(result, ['Gỉ sét (90.0%)', 'Thấm nước / ẩm mốc (80.0%)']);
     });
 
     test('không có kết quả nào vượt ngưỡng', () {
       expect(
         TfliteVisionRepositoryImpl.decodeDetections(
           output({
-            3: [0.3, 0.2, 0.1],
+            0: [0.3, 0.2, 0.1],
           }),
           labels,
         ),

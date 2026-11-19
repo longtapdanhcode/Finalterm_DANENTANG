@@ -83,7 +83,7 @@ const _qr = Barcode(
 );
 
 const _water = Detection(
-  classIndex: 2, // Thấm nước (model 9 lớp)
+  classIndex: 1, // Thấm nước / ẩm mốc
   label: 'Thấm nước',
   score: 0.88,
   cx: 0.5,
@@ -93,7 +93,7 @@ const _water = Detection(
 );
 
 const _chair = Detection(
-  classIndex: 6,
+  classIndex: 6, // lớp không có trong bảng ánh xạ hư hỏng
   label: 'Ghế',
   score: 0.9,
   cx: 0.2,

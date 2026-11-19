@@ -55,7 +55,7 @@ Quét thẻ QR trên bề mặt
 
 | Bước | Quy tắc |
 |---|---|
-| Khối lượng | Thấm/mốc, bong sơn, gỉ sét đo theo **m²**; vết nứt đo theo **mét dài**. Với model hiện tại (khung chữ nhật): diện tích ≈ diện tích khung × π/4, chiều dài nứt ≈ đường chéo khung |
+| Khối lượng | Thấm/mốc, bong sơn, gỉ sét đo theo **m²**; vết nứt đo theo **mét dài**. Diện tích = số điểm mask của model phân vùng; chiều dài nứt ≈ đường chéo phần mask thật. Model chỉ có khung thì dùng khung × π/4 và đường chéo khung |
 | Chỉ số hư hại (0–100) | Loại theo m²: diện tích hư ÷ diện tích bề mặt × 100. Vết nứt: (mét nứt ÷ m² bề mặt) ÷ 2 m/m² × 100. Các vùng cùng loại được cộng trước khi tính |
 | Mức độ | Dưới 5: **Nhẹ**; 5–20: **Vừa**; từ 20: **Nặng** |
 | Xử lý toàn bộ | Loại theo m² có chỉ số từ 40: tính tiền theo **cả diện tích bề mặt** |
@@ -142,14 +142,13 @@ docs/kiem-thu/              # Biên bản kiểm thử thủ công
 
 ### Pipeline Edge AI
 
-- **Model hiện tại:** YOLOv8s phát hiện 9 lớp (từ phạm vi cũ), input `1×3×640×640`, output `1×(4+9)×8400`. App chỉ dùng 3 lớp hư hỏng:
-  - Vết nứt
-  - Gỉ sét (gộp cả "Khuyết tật kim loại")
-  - Thấm nước
+- **Model:** YOLOv8n-seg **phân vùng 4 lớp bề mặt** (`best-newdomain.pt`), thứ tự lớp: vết nứt, thấm nước / ẩm mốc, bong tróc sơn, gỉ sét. Xuất TFLite bằng `ultralytics` 8.4 (`format='tflite'`, 13,2 MB):
+  - vào `1×3×640×640` (NCHW, RGB 0..1);
+  - ra `1×40×8400` (cx, cy, w, h + điểm 4 lớp + 32 hệ số mask) và `1×32×160×160` (proto mask).
 
-  Các lớp đồ vật bị bỏ qua. Ánh xạ nằm ở `AiConfig.damageTypeByClass`.
-- **Model thay thế (đang train):** YOLOv8n-seg **phân vùng 4 lớp bề mặt**: vết nứt, thấm/ẩm mốc, bong tróc sơn, gỉ sét. Model này đo theo mask thay vì khung chữ nhật. Hướng dẫn và script nằm ở [`docs/ai-training/HUONG_DAN_TRAIN_MODEL_BE_MAT.md`](docs/ai-training/HUONG_DAN_TRAIN_MODEL_BE_MAT.md).
-- **Giải mã:** mỗi ô lấy lớp có điểm cao nhất, lọc theo ngưỡng (`0.5` thường, `0.7` cho lớp hư hỏng), rồi NMS theo từng lớp (IoU 0,45).
+  Ánh xạ lớp → loại hư hỏng ở `AiConfig.damageTypeByClass`. `ModelOutputLayout` tự nhận bố cục đầu ra lúc nạp, nên model phát hiện cũ (một đầu ra) vẫn chạy được. Hướng dẫn train và script: [`docs/ai-training/HUONG_DAN_TRAIN_MODEL_BE_MAT.md`](docs/ai-training/HUONG_DAN_TRAIN_MODEL_BE_MAT.md).
+- **Độ chính xác (tập val lúc train):** mAP50 mask 0,40, precision 0,60, recall 0,37. Model còn bỏ sót nhiều, cần thêm ảnh chụp thật ở trường.
+- **Giải mã:** mỗi ô lấy lớp có điểm cao nhất, lọc theo ngưỡng chung `0.4`, NMS theo từng lớp (IoU 0,45). Mask của mỗi vùng = tổng (hệ số × proto), cắt trong khung, ngưỡng xác suất 0,5 (`MaskPrototypes`). Đã đối chiếu với ultralytics trên cùng file TFLite: diện tích mask lệch dưới 0,5%.
 - **Phần cứng chạy:** iOS dùng **GPU delegate Metal** (cho phép FP16), lỗi thì tự chuyển sang CPU 4 luồng. Đo trên iPhone 11 Pro Max: phần mô hình mất 98–153 ms.
 - **Tiền xử lý:** AI chỉ nhận ô vuông giữa khung hình, cạnh bằng 70% cạnh ngắn (`AiConfig.cropFraction`), khớp khung xanh trên màn quét.
   - **iOS:** bản vá `mobile_scanner` cắt ô này về RGB 640×640 bằng CoreGraphics và gửi qua khóa `aiInput`. Toạ độ góc mã QR và ô cắt cùng nằm trên một ảnh gốc, nên phép quy đổi kích thước không phụ thuộc chiều xoay máy.
@@ -157,9 +156,9 @@ docs/kiem-thu/              # Biên bản kiểm thử thủ công
 - **Bản vá `mobile_scanner` (iOS/macOS):** vẫn gửi frame khi không có mã (khoảng 2 frame/giây) và gửi kèm `aiInput`. Chi tiết xem `third_party/mobile_scanner/PATCH_NOTES.md`.
   > ⚠️ Android **chưa vá**, nên trên Android AI chỉ chạy khi camera thấy mã. Luồng đo vẫn hoạt động vì luôn quét thẻ QR, nhưng toạ độ góc mã trên Android chưa được kiểm tra.
 - **Hạn chế đã biết:**
-  - Số đo theo khung chữ nhật chỉ là ước lượng.
+  - Mask ở độ phân giải 160×160 (mỗi điểm ≈ 0,6% cạnh ô ảnh), nên vết nứt mảnh có thể bị đo dày hoặc đứt đoạn.
   - Kết quả chỉ đúng khi thẻ QR và vùng hư hỏng nằm trên cùng mặt phẳng và chụp gần thẳng góc.
-  - Model cũ chưa có lớp bong tróc sơn.
+  - Model mới train trên dataset ngoài, chưa kiểm tra với ảnh chụp tại trường.
 
 ### Dữ liệu
 
@@ -288,7 +287,7 @@ Biên bản kiểm thử thủ công nằm trong `docs/kiem-thu/`.
 | 9 | 26–28 | Supabase Auth + RLS, màn Địa điểm & Cài đặt, bản web quản lý |
 | 10 | — | Model YOLOv8s mới, Edge AI chạy GPU Metal, cắt ảnh theo khung quét ở phía native |
 | 11 | — | Thu hẹp phạm vi về cơ sở vật chất trường học: đo hư hỏng theo thẻ QR, chỉ số và chi phí sửa chữa, bảng đơn giá, báo cáo chi phí |
-| 12 | — | (Đang làm) Model phân vùng 4 lớp bề mặt, đo theo mask |
+| 12 | — | Model phân vùng 4 lớp bề mặt (YOLOv8n-seg), đo diện tích và chiều dài theo mask |
 
 ## Quy trình Git
 

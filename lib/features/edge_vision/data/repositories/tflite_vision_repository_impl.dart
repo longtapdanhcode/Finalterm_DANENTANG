@@ -11,6 +11,7 @@ import 'package:tflite_flutter/tflite_flutter.dart';
 import '../../../../core/ai_pipeline/ai_config.dart';
 import '../../domain/entities/vision_analysis.dart';
 import '../../domain/repositories/vision_ai_repository.dart';
+import '../../domain/segmentation_mask.dart';
 import '../../domain/yolo_box_decoder.dart';
 
 part 'tflite_vision_repository_impl.g.dart';
@@ -31,6 +32,9 @@ class TfliteVisionRepositoryImpl implements VisionAiRepository {
 
   /// Lượt suy luận đang chạy trong isolate (nếu có).
   Future<void>? _inference;
+
+  /// Bố cục đầu ra của model đang nạp.
+  ModelOutputLayout? _layout;
 
   bool get isModelLoaded => _isModelLoaded;
 
@@ -68,12 +72,8 @@ class TfliteVisionRepositoryImpl implements VisionAiRepository {
         _release();
         return;
       }
-      _isModelLoaded = true;
-      _status = VisionModelStatus.loaded;
-      _error = null;
-      debugPrint('[VisionAI] TFLite model loaded successfully');
 
-      // 3. Đọc nhãn phân loại nếu có
+      // 3. Đọc nhãn phân loại, rồi suy ra bố cục đầu ra theo số nhãn.
       final String labelData = await rootBundle.loadString(AiConfig.labelPath);
       if (labelData.trim().isNotEmpty) {
         _labels = labelData
@@ -82,6 +82,20 @@ class TfliteVisionRepositoryImpl implements VisionAiRepository {
             .where((e) => e.isNotEmpty)
             .toList();
       }
+      _layout = ModelOutputLayout.fromShapes([
+        for (final t in _interpreter!.getOutputTensors()) t.shape,
+      ], _labels.length);
+      if (_layout == null) {
+        throw StateError(
+          'Đầu ra mô hình không khớp ${_labels.length} nhãn: '
+          '${_interpreter!.getOutputTensors().map((t) => t.shape).toList()}',
+        );
+      }
+
+      _isModelLoaded = true;
+      _status = VisionModelStatus.loaded;
+      _error = null;
+      debugPrint('[VisionAI] TFLite model loaded: $_layout');
     } catch (e) {
       debugPrint(
         '[VisionAI] Model file is empty or invalid, skipping AI inference: $e',
@@ -139,7 +153,11 @@ class TfliteVisionRepositoryImpl implements VisionAiRepository {
     int frameWidth = 0,
     int frameHeight = 0,
   }) async {
-    if (_closed || !_isModelLoaded || _isolateInterpreter == null) {
+    final layout = _layout;
+    if (_closed ||
+        !_isModelLoaded ||
+        _isolateInterpreter == null ||
+        layout == null) {
       return const VisionAnalysis();
     }
 
@@ -167,9 +185,21 @@ class TfliteVisionRepositoryImpl implements VisionAiRepository {
       final interpreter = _isolateInterpreter;
       if (_closed || interpreter == null) return const VisionAnalysis();
 
-      final channels = 4 + _labels.length;
-      final output = Float32List(channels * _anchorCount);
-      final run = interpreter.run(input.buffer, output.buffer);
+      final channels = layout.channels;
+      final anchors = layout.anchors;
+      final output = Float32List(channels * anchors);
+      final protos = layout.hasMasks
+          ? Float32List(
+              layout.maskChannels * layout.protoSize * layout.protoSize,
+            )
+          : null;
+      final run = interpreter.runForMultipleInputs(
+        [input.buffer],
+        {
+          layout.boxIndex: output.buffer,
+          if (protos != null) layout.protoIndex!: protos.buffer,
+        },
+      );
       _inference = run;
       try {
         await run;
@@ -180,23 +210,29 @@ class TfliteVisionRepositoryImpl implements VisionAiRepository {
 
       final rows = [
         for (var c = 0; c < channels; c++)
-          Float32List.sublistView(
-            output,
-            c * _anchorCount,
-            (c + 1) * _anchorCount,
-          ),
+          Float32List.sublistView(output, c * anchors, (c + 1) * anchors),
       ];
       final top = topCandidate(rows, _labels.length);
+      var detections = decodeYoloBoxes(
+        rows,
+        _labels,
+        thresholdFor: thresholdFor,
+        inputSize: AiConfig.inputSize,
+        iouThreshold: AiConfig.nmsIouThreshold,
+        maxDetections: AiConfig.maxDetections,
+        maskChannels: layout.maskChannels,
+      );
+      if (protos != null) {
+        detections = MaskPrototypes(
+          protos,
+          channels: layout.maskChannels,
+          size: layout.protoSize,
+          channelsLast: layout.protoChannelsLast,
+        ).measureAll(detections);
+      }
       return VisionAnalysis(
         labels: decodeDetections(rows, _labels),
-        detections: decodeYoloBoxes(
-          rows,
-          _labels,
-          thresholdFor: thresholdFor,
-          inputSize: AiConfig.inputSize,
-          iouThreshold: AiConfig.nmsIouThreshold,
-          maxDetections: AiConfig.maxDetections,
-        ),
+        detections: detections,
         topLabel: top == null ? null : _labels[top.$1],
         topScore: top?.$2 ?? 0,
         topThreshold: top == null ? 0 : thresholdFor(top.$1),
@@ -214,10 +250,7 @@ class TfliteVisionRepositoryImpl implements VisionAiRepository {
   }
 
   /// Ngưỡng tin cậy của nhãn thứ [classIndex].
-  static double thresholdFor(int classIndex) =>
-      AiConfig.defectClassIndexes.contains(classIndex)
-      ? AiConfig.defectConfidenceThreshold
-      : AiConfig.confidenceThreshold;
+  static double thresholdFor(int classIndex) => AiConfig.confidenceThreshold;
 
   /// Nhãn có điểm cao nhất (chỉ số, điểm), kể cả khi dưới ngưỡng.
   @visibleForTesting
@@ -230,9 +263,6 @@ class TfliteVisionRepositoryImpl implements VisionAiRepository {
     }
     return best;
   }
-
-  /// Số ô dự đoán của YOLO ở đầu vào 640x640.
-  static const int _anchorCount = 8400;
 
   /// Giải mã JPEG bằng bộ giải mã native, thu nhỏ sao cho phần khung xanh
   /// ([AiConfig.cropFraction] cạnh ngắn) vừa đúng [AiConfig.inputSize].
@@ -368,6 +398,80 @@ class TfliteVisionRepositoryImpl implements VisionAiRepository {
     _interpreter?.close();
     _interpreter = null;
   }
+}
+
+/// Vị trí và kích thước các đầu ra của model YOLO trên TFLite.
+///
+/// - Model phát hiện: một đầu ra [1, 4 + số lớp, số ô].
+/// - Model phân vùng (YOLOv8-seg): thêm hệ số mask vào đầu ra trên
+///   ([1, 4 + số lớp + 32, số ô]) và một đầu ra proto [1, 32, 160, 160]
+///   (hoặc [1, 160, 160, 32] tuỳ cách xuất).
+@immutable
+class ModelOutputLayout {
+  const ModelOutputLayout({
+    required this.boxIndex,
+    required this.channels,
+    required this.anchors,
+    this.maskChannels = 0,
+    this.protoIndex,
+    this.protoSize = 0,
+    this.protoChannelsLast = false,
+  });
+
+  final int boxIndex;
+  final int channels;
+  final int anchors;
+  final int maskChannels;
+  final int? protoIndex;
+  final int protoSize;
+  final bool protoChannelsLast;
+
+  bool get hasMasks => protoIndex != null && maskChannels > 0;
+
+  /// Suy ra bố cục từ shape các đầu ra; `null` khi không khớp [labelCount].
+  static ModelOutputLayout? fromShapes(List<List<int>> shapes, int labelCount) {
+    if (labelCount <= 0) return null;
+    int? boxIndex;
+    int? protoIndex;
+    for (var i = 0; i < shapes.length; i++) {
+      final s = shapes[i];
+      if (s.length == 3 && s[1] >= 4 + labelCount) boxIndex ??= i;
+      if (s.length == 4) protoIndex ??= i;
+    }
+    if (boxIndex == null) return null;
+    final box = shapes[boxIndex];
+    final extra = box[1] - 4 - labelCount;
+    if (protoIndex == null || extra == 0) {
+      // Model phát hiện: bỏ qua mọi đầu ra khác.
+      return extra == 0
+          ? ModelOutputLayout(
+              boxIndex: boxIndex,
+              channels: box[1],
+              anchors: box[2],
+            )
+          : null;
+    }
+    final p = shapes[protoIndex];
+    final channelsFirst = p[1] == extra && p[2] == p[3];
+    final channelsLast = p[3] == extra && p[1] == p[2];
+    if (!channelsFirst && !channelsLast) return null;
+    return ModelOutputLayout(
+      boxIndex: boxIndex,
+      channels: box[1],
+      anchors: box[2],
+      maskChannels: extra,
+      protoIndex: protoIndex,
+      protoSize: channelsFirst ? p[2] : p[1],
+      protoChannelsLast: !channelsFirst,
+    );
+  }
+
+  @override
+  String toString() => hasMasks
+      ? 'phân vùng ${channels}x$anchors, proto '
+            '${maskChannels}x${protoSize}x$protoSize'
+            '${protoChannelsLast ? ' (NHWC)' : ''}'
+      : 'phát hiện ${channels}x$anchors';
 }
 
 @riverpod

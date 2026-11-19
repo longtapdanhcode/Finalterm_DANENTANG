@@ -90,7 +90,7 @@ class MeasurementCard extends StatelessWidget {
             Text(
               m.hasScale
                   ? 'Vùng AI nhìn thấy ≈ ${formatQuantity(m.capturedAreaM2 ?? 0, MeasureUnit.squareMeter)}. '
-                        'Số đo ước lượng theo khung, sửa được trên phiếu.'
+                        'Số đo do AI ước tính, sửa được trên phiếu.'
                   : 'Thẻ QR quá nhỏ hoặc không rõ trong ảnh. Dán thẻ '
                         '${formatDecimal(AiConfig.markerSizeCm)} cm trên bề mặt và chụp gần hơn để tự đo.',
               style: const TextStyle(fontSize: 12, color: FlColors.muted),

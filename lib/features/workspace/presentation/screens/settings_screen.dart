@@ -242,12 +242,8 @@ class _AiSection extends StatelessWidget {
           value: '${AiConfig.inputSize} × ${AiConfig.inputSize}',
         ),
         _Info(
-          label: 'Ngưỡng thiết bị',
+          label: 'Ngưỡng tin cậy',
           value: pct(AiConfig.confidenceThreshold),
-        ),
-        _Info(
-          label: 'Ngưỡng lỗi / hư hỏng',
-          value: pct(AiConfig.defectConfidenceThreshold),
         ),
         const Gap(8),
         const Text(
