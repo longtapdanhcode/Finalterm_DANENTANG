@@ -23,10 +23,19 @@ class AiConfig {
   /// diện xung quanh và bớt phải thu nhỏ ảnh.
   static const double cropFraction = 0.7;
 
-  /// Ngưỡng tin cậy chung cho cả 4 lớp hư hỏng. Model hiện tại (mAP50 mask
-  /// 0.40, recall 0.37 trên tập val) cho điểm thấp hơn model cũ nên ngưỡng
-  /// hạ xuống 0.4; người kiểm kê vẫn xác nhận và sửa số đo trên phiếu.
+  /// Ngưỡng tin cậy mặc định (thấm/mốc, bong sơn). Model hiện tại có mAP50
+  /// mask 0.50, recall 0.47 trên tập val, điểm thấp hơn model cũ nên ngưỡng
+  /// để 0.4; người kiểm kê vẫn xác nhận và sửa số đo trên phiếu.
   static const double confidenceThreshold = 0.4;
+
+  /// Ngưỡng riêng theo lớp. Ma trận nhầm lẫn lúc train: báo nhầm trên nền
+  /// chủ yếu là vết nứt (52%) và gỉ sét (36%), nên hai lớp này cần điểm cao
+  /// hơn. Hiệu chỉnh lại khi có ảnh chụp tại trường.
+  static const Map<int, double> classConfidenceThresholds = {0: 0.5, 3: 0.5};
+
+  /// Ngưỡng tin cậy của lớp [classIndex].
+  static double thresholdFor(int classIndex) =>
+      classConfidenceThresholds[classIndex] ?? confidenceThreshold;
 
   /// Lớp của model ứng với loại hư hỏng bề mặt nào (thứ tự trong
   /// docs/ai-training/HUONG_DAN_TRAIN_MODEL_BE_MAT.md).

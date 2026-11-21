@@ -250,7 +250,8 @@ class TfliteVisionRepositoryImpl implements VisionAiRepository {
   }
 
   /// Ngưỡng tin cậy của nhãn thứ [classIndex].
-  static double thresholdFor(int classIndex) => AiConfig.confidenceThreshold;
+  static double thresholdFor(int classIndex) =>
+      AiConfig.thresholdFor(classIndex);
 
   /// Nhãn có điểm cao nhất (chỉ số, điểm), kể cả khi dưới ngưỡng.
   @visibleForTesting

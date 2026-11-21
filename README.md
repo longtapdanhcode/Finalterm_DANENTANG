@@ -142,13 +142,13 @@ docs/kiem-thu/              # Biên bản kiểm thử thủ công
 
 ### Pipeline Edge AI
 
-- **Model:** YOLOv8n-seg **phân vùng 4 lớp bề mặt** (`best-newdomain.pt`), thứ tự lớp: vết nứt, thấm nước / ẩm mốc, bong tróc sơn, gỉ sét. Xuất TFLite bằng `ultralytics` 8.4 (`format='tflite'`, 13,2 MB):
+- **Model:** YOLOv8n-seg **phân vùng 4 lớp bề mặt** (`best-newdomain2.pt`), thứ tự lớp: vết nứt, thấm nước / ẩm mốc, bong tróc sơn, gỉ sét. Xuất TFLite bằng `ultralytics` 8.4 (`format='tflite'`, 13,2 MB):
   - vào `1×3×640×640` (NCHW, RGB 0..1);
   - ra `1×40×8400` (cx, cy, w, h + điểm 4 lớp + 32 hệ số mask) và `1×32×160×160` (proto mask).
 
   Ánh xạ lớp → loại hư hỏng ở `AiConfig.damageTypeByClass`. `ModelOutputLayout` tự nhận bố cục đầu ra lúc nạp, nên model phát hiện cũ (một đầu ra) vẫn chạy được. Hướng dẫn train và script: [`docs/ai-training/HUONG_DAN_TRAIN_MODEL_BE_MAT.md`](docs/ai-training/HUONG_DAN_TRAIN_MODEL_BE_MAT.md).
-- **Độ chính xác (tập val lúc train):** mAP50 mask 0,40, precision 0,60, recall 0,37. Model còn bỏ sót nhiều, cần thêm ảnh chụp thật ở trường.
-- **Giải mã:** mỗi ô lấy lớp có điểm cao nhất, lọc theo ngưỡng chung `0.4`, NMS theo từng lớp (IoU 0,45). Mask của mỗi vùng = tổng (hệ số × proto), cắt trong khung, ngưỡng xác suất 0,5 (`MaskPrototypes`). Đã đối chiếu với ultralytics trên cùng file TFLite: diện tích mask lệch dưới 0,5%.
+- **Độ chính xác (tập val lúc train):** mAP50 mask 0,50, precision 0,62, recall 0,47 (bản trước: 0,40 / 0,60 / 0,37). Theo ma trận nhầm lẫn, tỉ lệ nhận đúng từng lớp: vết nứt 0,72, thấm/mốc 0,82, bong sơn 0,89, gỉ sét 0,87; báo nhầm trên nền chủ yếu là vết nứt và gỉ sét. Cần thêm ảnh chụp thật ở trường.
+- **Giải mã:** mỗi ô lấy lớp có điểm cao nhất, lọc theo ngưỡng `0.4` (vết nứt, gỉ sét `0.5`, `AiConfig.thresholdFor`), NMS theo từng lớp (IoU 0,45). Mask của mỗi vùng = tổng (hệ số × proto), cắt trong khung, ngưỡng xác suất 0,5 (`MaskPrototypes`). Đã đối chiếu với ultralytics trên cùng file TFLite: diện tích mask lệch dưới 0,5%.
 - **Phần cứng chạy:** iOS dùng **GPU delegate Metal** (cho phép FP16), lỗi thì tự chuyển sang CPU 4 luồng. Đo trên iPhone 11 Pro Max: phần mô hình mất 98–153 ms.
 - **Tiền xử lý:** AI chỉ nhận ô vuông giữa khung hình, cạnh bằng 70% cạnh ngắn (`AiConfig.cropFraction`), khớp khung xanh trên màn quét.
   - **iOS:** bản vá `mobile_scanner` cắt ô này về RGB 640×640 bằng CoreGraphics và gửi qua khóa `aiInput`. Toạ độ góc mã QR và ô cắt cùng nằm trên một ảnh gốc, nên phép quy đổi kích thước không phụ thuộc chiều xoay máy.

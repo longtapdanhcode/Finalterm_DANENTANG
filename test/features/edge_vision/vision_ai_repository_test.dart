@@ -14,6 +14,11 @@ void main() {
       expect(AiConfig.labelPath, 'assets/models/labels.txt');
       expect(AiConfig.inputSize, 640);
       expect(AiConfig.confidenceThreshold, 0.4);
+      // Vết nứt, gỉ sét báo nhầm trên nền nhiều nhất: ngưỡng cao hơn.
+      expect(AiConfig.thresholdFor(0), 0.5);
+      expect(AiConfig.thresholdFor(1), 0.4);
+      expect(AiConfig.thresholdFor(2), 0.4);
+      expect(AiConfig.thresholdFor(3), 0.5);
       expect(AiConfig.damageTypeByClass.length, 4);
     });
 
@@ -113,6 +118,17 @@ void main() {
         labels,
       );
       expect(result, ['Gỉ sét (90.0%)', 'Thấm nước / ẩm mốc (80.0%)']);
+    });
+
+    test('vết nứt cần 0.5, thấm/mốc chỉ cần 0.4', () {
+      final result = TfliteVisionRepositoryImpl.decodeDetections(
+        output({
+          0: [0.45, 0.0, 0.0],
+          1: [0.45, 0.0, 0.0],
+        }),
+        labels,
+      );
+      expect(result, ['Thấm nước / ẩm mốc (45.0%)']);
     });
 
     test('không có kết quả nào vượt ngưỡng', () {
