@@ -1,6 +1,6 @@
 # Fieldline — Field Inventory & Edge AI
 
-Ứng dụng **kiểm kê tài sản hiện trường** viết bằng Flutter. App cho phép quét mã QR/Barcode, nhận diện thiết bị và hư hỏng **ngay trên máy** bằng mô hình YOLO (TFLite), lập phiếu kiểm kê **ngoại tuyến** (Isar), ký xác nhận, chụp ảnh minh chứng, tự đồng bộ lên **Supabase** khi có mạng và xuất **báo cáo PDF A4**. Bản **web** đóng vai trò trung tâm quản lý dữ liệu.
+Ứng dụng **kiểm kê tài sản hiện trường** viết bằng Flutter. App quét mã QR/Barcode, nhận diện thiết bị và khoanh vùng hư hỏng **ngay trên máy** bằng YOLO (TFLite), lập phiếu kiểm kê **ngoại tuyến** (Isar), ký xác nhận, tự đồng bộ lên **Supabase** khi có mạng và xuất **báo cáo PDF A4**. Bản **web** là trung tâm quản lý dữ liệu.
 
 > Đồ án cuối kỳ môn **Phát triển ứng dụng đa nền tảng**.
 
@@ -11,11 +11,12 @@
 ### App hiện trường (iOS / Android / macOS)
 - **Đăng nhập / đăng ký** bằng Supabase Auth. Phiên đăng nhập được giữ trên máy, nên sau lần đầu vẫn vào app được khi ngoại tuyến.
 - **Quét mã** QR / EAN / UPC / Code128/39/93 / DataMatrix / PDF417. Hỗ trợ đèn flash, đổi camera, **nhập mã thủ công** khi camera lỗi.
-- **Edge AI**: YOLO chạy on-device, nhận diện **9 lớp**:
+- **Edge AI trên màn Quét**: YOLOv8s chạy trên thiết bị và nhận diện **9 lớp**:
   - Thiết bị: Tủ điện, Aptomat, Ghế, Bàn, Máy chiếu
   - Hư hỏng: Vết nứt, Gỉ sét, Thấm nước, Khuyết tật kim loại
 
-  Trên iOS, mô hình chạy bằng **GPU (Metal)**, mỗi lượt nhận diện mất khoảng 0,3 giây. AI chỉ đọc phần ảnh **trong khung xanh**, và vẫn nhận diện được khi khung hình không có QR. Màn quét có thẻ **chẩn đoán AI** hiện thời gian xử lý và phần cứng đang dùng (GPU/CPU).
+  AI đọc phần ảnh **trong khung xanh** và vẫn chạy khi không thấy mã QR. Thẻ **chẩn đoán AI** hiển thị thời gian xử lý và phần cứng đang dùng (GPU/CPU).
+- **Phân vùng hư hỏng trên ảnh minh chứng (Android/iOS)**: trong **Lập phiếu kiểm kê → Ảnh minh chứng**, thêm ảnh rồi chạm vào ảnh để xem AI khoanh vùng **vết nứt, thấm mốc, bong sơn và gỉ sét**. Ảnh minh chứng gốc vẫn được dùng khi lưu phiếu và xuất PDF.
 - **Phiếu kiểm kê**: tên tài sản, loại, khu vực, vị trí, tình trạng, số lượng, ghi chú, **ảnh minh chứng** (`image_picker`). Phiếu chưa ký được lưu thành **bản nháp**: bản nháp không đồng bộ, không vào báo cáo, có thể mở lại để ký hoặc xoá.
 - **Ký xác nhận** trên canvas (lưu tên và chức vụ người ký), xuất ảnh PNG.
 - **Offline-first**: mọi phiếu lưu vào Isar trước.
@@ -36,7 +37,7 @@
 | State | `flutter_riverpod` + `riverpod_generator` |
 | Routing | `go_router` (auth redirect, `ShellRoute`) |
 | Camera / Scanner | `mobile_scanner` 7.4.2 (**bản vá cục bộ** trong `third_party/`), `permission_handler` |
-| Edge AI | `tflite_flutter` (GPU delegate Metal trên iOS) — YOLOv8s, input 640×640 |
+| Edge AI | `tflite_flutter` — YOLOv8s nhận diện ở màn Quét và YOLOv8n-seg V3 phân vùng ảnh minh chứng, đầu vào 640×640 |
 | Local DB | `isar_plus` |
 | Backend | `supabase_flutter` (Postgres + RLS, Auth, Storage) |
 | Mạng | `connectivity_plus`, `http` |
@@ -61,7 +62,7 @@ lib/
 │   └── widgets/                      # FieldlineShell (navigation), widget dùng chung
 └── features/
     ├── auth/              # Supabase Auth, màn đăng nhập/đăng ký, tài khoản
-    ├── edge_vision/       # Scanner + suy luận TFLite + panel chẩn đoán AI
+    ├── edge_vision/       # Scanner, chẩn đoán AI và phân vùng ảnh minh chứng
     ├── offline_audit/     # Phiếu kiểm kê, Isar, ảnh minh chứng, sync & auto-sync
     ├── canvas_signature/  # Ký xác nhận
     ├── asset_catalog/     # Danh mục tài sản, editor, đối chiếu xung đột
@@ -74,7 +75,7 @@ supabase/
 └── seed/assets_sample.sql # 5 tài sản mẫu
 
 third_party/mobile_scanner/ # Bản vá mobile_scanner (xem PATCH_NOTES.md)
-assets/models/              # object_detection.tflite (~45 MB) + labels.txt
+assets/models/              # Model màn Quét (~45 MB) và phân vùng V3 (~14 MB)
 docs/kiem-thu/              # Biên bản kiểm thử thủ công
 ```
 
@@ -90,7 +91,7 @@ Tất cả màn hình đều đã hoàn thành. App hiện trường (iOS / Andr
 | `/reports`, `/reports/preview` | Báo cáo, xem trước PDF | ✅ | ✅ |
 | `/locations`, `/settings` | Địa điểm, Cài đặt | ✅ | ✅ |
 | `/scanner` | Quét mã + Edge AI | ✅ | — ¹ |
-| `/audit-form` | Lập phiếu kiểm kê | ✅ | — ² |
+| `/audit-form` | Lập phiếu kiểm kê, phân vùng ảnh minh chứng trên Android/iOS | ✅ | — ² |
 | `/signature` | Ký xác nhận | ✅ | — ² |
 | `/sync`, `/sync/conflicts` | Đồng bộ, đối chiếu xung đột | ✅ | — ³ |
 
@@ -101,6 +102,8 @@ Tất cả màn hình đều đã hoàn thành. App hiện trường (iOS / Andr
 
 ### Pipeline Edge AI
 
+#### Nhận diện ở màn Quét
+
 - **Mô hình:** YOLOv8s từ `DinoResults.zip`, checkpoint `runs/finetune_best_bo_da_sua/weights/best.pt`, huấn luyện ở 640. Đã thay `assets/models/object_detection.tflite` bằng bản TFLite float32 xuất qua ONNX (Ultralytics 8.4.183, ONNX opset 13, onnx2tf 2.6.9).
   - Input: `1×3×640×640` (NCHW).
   - Output: `1×(4+9)×8400` gồm `cx, cy, w, h` theo pixel rồi đến điểm của từng lớp. Giữ nguyên thứ tự 9 lớp và nhãn tiếng Việt.
@@ -108,7 +111,7 @@ Tất cả màn hình đều đã hoàn thành. App hiện trường (iOS / Andr
   - Đã đối chiếu TFLite với checkpoint FP32 trên ảnh rỗng, đầu vào ngẫu nhiên và ảnh validation trong ZIP: sai lệch điểm lớp lớn nhất **0.00000385**. Đây là kiểm tra chuyển đổi, không phải phép đo độ chính xác ngoài hiện trường.
   - SHA256 checkpoint: `7bc8924a9619d60d4835bc71e4be853a554a94a76017bae0fe1a5b52b6785c2f`.
   - SHA256 TFLite: `6c10c23227faec7335d4049037a63b394ac39e75cda79ac7b2eaef4208fda6df`.
-- **Phần cứng chạy:** iOS dùng **GPU delegate Metal** (cho phép FP16). Nếu Metal lỗi, app tự chuyển sang CPU 4 luồng. Chưa đo tốc độ model mới trên điện thoại thật.
+- **Phần cứng chạy:** iOS thử **GPU delegate Metal** (cho phép FP16) và chuyển sang CPU 4 luồng nếu khởi tạo GPU thất bại.
 - **Tiền xử lý:** AI chỉ nhận ô vuông giữa khung hình, cạnh bằng 70% cạnh ngắn (`AiConfig.cropFraction`), khớp với khung xanh trên màn quét.
   - iOS: bản vá `mobile_scanner` cắt và thu nhỏ ô này về RGB 640×640 bằng CoreGraphics, gửi sang Dart qua khóa `aiInput`. Dart chỉ còn đổi mảng này sang tensor.
   - Nền tảng khác: giải mã JPEG bằng `dart:ui` (thu nhỏ ngay lúc giải mã), rồi cắt ô giữa.
@@ -121,6 +124,15 @@ Tất cả màn hình đều đã hoàn thành. App hiện trường (iOS / Andr
   Chi tiết xem `third_party/mobile_scanner/PATCH_NOTES.md`.
   - Android cũng gửi ảnh khi không thấy mã (tối đa 2 khung/giây), dùng đường xử lý JPEG của Dart.
 - **Hạn chế dữ liệu:** theo `training_data_info.json`, phần lớn nhãn (kể cả val/test) do AI tạo và chưa được người kiểm tra đầy đủ. Lớp Tủ điện chỉ có 61 đối tượng train, 5 val, 12 test; cần kiểm tra thêm bằng ảnh thực tế. Giữ ngưỡng nhận diện hiện tại cho đến khi có kết quả hiệu chỉnh trên thiết bị.
+
+#### Phân vùng hư hỏng trên ảnh minh chứng
+
+- **Model:** YOLOv8n-seg V3, huấn luyện 120 epoch ở kích thước 640. Checkpoint `fieldline/fieldline_retrain_120/weights/best.pt` trong `TrainDACN2V3.zip` được xuất qua ONNX opset 13 sang TFLite float32 và đóng gói tại `assets/models/damage_segmentation_v3.tflite`.
+- **Sử dụng:** thêm hoặc chọn ảnh minh chứng trong form, sau đó chạm vào ảnh đã đính kèm. App chạy bằng CPU trong isolate, tô vùng dự đoán lên bản xem trước và hiển thị điểm tin cậy từng lớp. Suy luận chạy trên thiết bị Android/iOS.
+- **Input/output:** RGB float32 `1×3×640×640` có đệm khi ảnh lệch tỉ lệ. Đầu ra `1×40×8400` chứa khung, điểm của 4 lớp và hệ số mask. Tensor `1×32×160×160` chứa các mask cơ sở. App lọc dự đoán từ 0,30, loại khung trùng theo từng lớp và dựng tối đa 20 vùng trên ảnh xem trước.
+- **Kiểm tra chuyển đổi:** cả hai tensor đầu ra của TFLite đã được so với ONNX trên một ảnh mẫu. SHA-256 của file TFLite là `59c5f33e06321410ead12f6bfb48117c5fdccf2cab4c1d1878f358f16a7e1ad9`.
+- **Mask AP50–95 trên tập test của V3:** vết nứt **9,6%**, thấm mốc **21,2%**, bong sơn **26,0%**, gỉ sét **29,9%**. Các chỉ số này đo chất lượng phân vùng trên tập test; người kiểm kê cần đối chiếu vùng AI tô với ảnh gốc.
+- **Hướng phát triển:** hiệu chỉnh kích thước từ mốc trong ảnh để tính m/m², xác nhận khối lượng thi công và tính chi phí theo bảng đơn giá.
 
 ### Dữ liệu
 
@@ -235,6 +247,7 @@ Biên bản kiểm thử thủ công nằm trong `docs/kiem-thu/`.
 | 8 | 23–25 | Ảnh minh chứng, tự động đồng bộ, đối chiếu xung đột tài sản |
 | 9 | 26–28 | Supabase Auth + RLS, màn Địa điểm & Cài đặt, bản web quản lý |
 | 10 | — | Model YOLOv8s mới, Edge AI chạy GPU Metal, cắt ảnh theo khung quét ở phía native |
+| Mở rộng | — | YOLOv8n-seg V3 khoanh vùng 4 loại hư hỏng trên ảnh minh chứng |
 
 ## Quy trình Git
 
