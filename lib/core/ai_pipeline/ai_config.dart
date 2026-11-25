@@ -3,12 +3,14 @@ import 'package:field_inventory_edge_ai/features/damage_assessment/domain/entiti
 class AiConfig {
   const AiConfig._();
 
-  /// Mô hình phân vùng YOLOv8n-seg 4 lớp hư hỏng bề mặt (best-newdomain.pt)
-  /// đã xuất sang TFLite. Đầu vào 1x3x640x640 (NCHW, RGB 0..1). Hai đầu ra:
-  /// - 1x40x8400: cx, cy, w, h (chuẩn hoá 0..1), điểm 4 lớp, 32 hệ số mask;
+  /// Mô hình phân vùng YOLOv8n-seg V3, 4 lớp hư hỏng bề mặt, xuất qua ONNX
+  /// opset 13 sang TFLite float32 (onnx2tf). Đầu vào 1x3x640x640 (NCHW, RGB
+  /// 0..1). Hai đầu ra:
+  /// - 1x40x8400: cx, cy, w, h (pixel 0..640), điểm 4 lớp, 32 hệ số mask;
   /// - 1x32x160x160: proto mask cho cả ô ảnh vào.
-  /// Model phát hiện cũ (chỉ một đầu ra 1x(4+số lớp)x8400) vẫn chạy được.
-  static const String modelPath = 'assets/models/object_detection.tflite';
+  /// Màn Quét (đo theo thẻ QR) và hộp thoại "Vùng hư hỏng" trên ảnh minh
+  /// chứng dùng chung file này.
+  static const String modelPath = 'assets/models/damage_segmentation_v3.tflite';
 
   /// Nhãn hiển thị, đúng thứ tự lớp lúc huấn luyện:
   /// vet_nut, tham_moc, bong_son, gi_set.
@@ -23,15 +25,14 @@ class AiConfig {
   /// diện xung quanh và bớt phải thu nhỏ ảnh.
   static const double cropFraction = 0.7;
 
-  /// Ngưỡng tin cậy mặc định (thấm/mốc, bong sơn). Model hiện tại có mAP50
-  /// mask 0.50, recall 0.47 trên tập val, điểm thấp hơn model cũ nên ngưỡng
-  /// để 0.4; người kiểm kê vẫn xác nhận và sửa số đo trên phiếu.
+  /// Ngưỡng tin cậy khi đo ở màn Quét, chung cho 4 lớp. Mask AP50-95 của
+  /// V3 trên tập test chỉ 9,6–29,9% nên ngưỡng để 0.4 (cao hơn mức 0.3 của
+  /// hộp thoại xem ảnh minh chứng); người kiểm kê vẫn xác nhận và sửa số đo
+  /// trên phiếu. Hiệu chỉnh lại khi có ảnh chụp tại trường.
   static const double confidenceThreshold = 0.4;
 
-  /// Ngưỡng riêng theo lớp. Ma trận nhầm lẫn lúc train: báo nhầm trên nền
-  /// chủ yếu là vết nứt (52%) và gỉ sét (36%), nên hai lớp này cần điểm cao
-  /// hơn. Hiệu chỉnh lại khi có ảnh chụp tại trường.
-  static const Map<int, double> classConfidenceThresholds = {0: 0.5, 3: 0.5};
+  /// Ngưỡng riêng theo lớp (để trống: dùng [confidenceThreshold]).
+  static const Map<int, double> classConfidenceThresholds = {};
 
   /// Ngưỡng tin cậy của lớp [classIndex].
   static double thresholdFor(int classIndex) =>

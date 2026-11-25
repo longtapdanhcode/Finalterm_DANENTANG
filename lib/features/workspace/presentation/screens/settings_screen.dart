@@ -243,9 +243,7 @@ class _AiSection extends StatelessWidget {
         ),
         _Info(
           label: 'Ngưỡng tin cậy',
-          value:
-              '${pct(AiConfig.confidenceThreshold)} '
-              '(vết nứt, gỉ sét ${pct(AiConfig.thresholdFor(0))})',
+          value: pct(AiConfig.confidenceThreshold),
         ),
         const Gap(8),
         const Text(

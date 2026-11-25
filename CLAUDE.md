@@ -44,8 +44,8 @@ Khi thêm màn hình hoặc provider dùng cho cả hai nền tảng, hãy đưa
 - Danh mục tài sản (`features/asset_catalog`) lưu `baseJson` / `conflictJson` trên `AssetModel` để đối chiếu 3 bên (`domain/asset_merge.dart`); xung đột hiện ở `/sync/conflicts`.
 
 ### Pipeline Edge AI (`features/edge_vision`, `core/ai_pipeline/ai_config.dart`)
-- Mô hình `assets/models/object_detection.tflite` là YOLOv8n-seg 4 lớp (vết nứt, thấm/mốc, bong sơn, gỉ sét; nhãn trong `labels.txt`). Input 1×3×640×640 (NCHW); output 1×40×8400 (cx, cy, w, h + điểm 4 lớp + 32 hệ số mask) và proto 1×32×160×160. `ModelOutputLayout` suy bố cục từ shape lúc nạp (model chỉ phát hiện khung vẫn chạy); `MaskPrototypes` tính mask trong khung để ra diện tích / chiều dài.
-- Chỉ ô vuông giữa khung hình (`AiConfig.cropFraction` = 70% cạnh ngắn, khớp khung xanh trên màn quét) được đưa vào mô hình. Ngưỡng tin cậy 0.4, riêng vết nứt và gỉ sét 0.5 (`AiConfig.thresholdFor`). Frame mới bị bỏ qua khi AI đang xử lý.
+- Mô hình `assets/models/damage_segmentation_v3.tflite` là YOLOv8n-seg V3 4 lớp (vết nứt, thấm/mốc, bong sơn, gỉ sét; nhãn trong `labels.txt`). Input 1×3×640×640 (NCHW); output 1×40×8400 (cx, cy, w, h theo pixel + điểm 4 lớp + 32 hệ số mask) và proto 1×32×160×160. `ModelOutputLayout` suy bố cục từ shape lúc nạp (model chỉ phát hiện khung vẫn chạy); `MaskPrototypes` tính mask trong khung để ra diện tích / chiều dài. Cùng file model còn dùng cho hộp thoại "Vùng hư hỏng" trên ảnh minh chứng (`damage_segmentation_native.dart`, ngưỡng 0.3, letterbox).
+- Chỉ ô vuông giữa khung hình (`AiConfig.cropFraction` = 70% cạnh ngắn, khớp khung xanh trên màn quét) được đưa vào mô hình. Ngưỡng tin cậy ở màn Quét 0.4 (`AiConfig.thresholdFor`). Frame mới bị bỏ qua khi AI đang xử lý.
 - iOS chạy bằng GPU delegate Metal, lỗi thì tự chuyển sang CPU.
 - `mobile_scanner` là **bản vá cục bộ** trong `third_party/mobile_scanner` (khai báo qua `dependency_overrides` trong pubspec). Bản vá iOS/macOS vẫn gửi frame khi không có mã (~2 frame/giây) và gửi kèm khoá `aiInput` chứa ảnh RGB 640×640 đã cắt sẵn. Android **chưa vá** (AI chỉ chạy khi camera thấy mã). Đọc `third_party/mobile_scanner/PATCH_NOTES.md` trước khi sửa.
 

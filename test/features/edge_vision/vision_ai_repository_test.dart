@@ -10,15 +10,13 @@ void main() {
 
   group('AiConfig Tests', () {
     test('AiConfig constants are properly configured', () {
-      expect(AiConfig.modelPath, 'assets/models/object_detection.tflite');
+      expect(AiConfig.modelPath, 'assets/models/damage_segmentation_v3.tflite');
       expect(AiConfig.labelPath, 'assets/models/labels.txt');
       expect(AiConfig.inputSize, 640);
       expect(AiConfig.confidenceThreshold, 0.4);
-      // Vết nứt, gỉ sét báo nhầm trên nền nhiều nhất: ngưỡng cao hơn.
-      expect(AiConfig.thresholdFor(0), 0.5);
-      expect(AiConfig.thresholdFor(1), 0.4);
-      expect(AiConfig.thresholdFor(2), 0.4);
-      expect(AiConfig.thresholdFor(3), 0.5);
+      for (var c = 0; c < 4; c++) {
+        expect(AiConfig.thresholdFor(c), 0.4);
+      }
       expect(AiConfig.damageTypeByClass.length, 4);
     });
 
@@ -120,15 +118,15 @@ void main() {
       expect(result, ['Gỉ sét (90.0%)', 'Thấm nước / ẩm mốc (80.0%)']);
     });
 
-    test('vết nứt cần 0.5, thấm/mốc chỉ cần 0.4', () {
+    test('cùng ngưỡng 0.4 cho mọi lớp', () {
       final result = TfliteVisionRepositoryImpl.decodeDetections(
         output({
           0: [0.45, 0.0, 0.0],
-          1: [0.45, 0.0, 0.0],
+          1: [0.35, 0.0, 0.0],
         }),
         labels,
       );
-      expect(result, ['Thấm nước / ẩm mốc (45.0%)']);
+      expect(result, ['Vết nứt (45.0%)']);
     });
 
     test('không có kết quả nào vượt ngưỡng', () {

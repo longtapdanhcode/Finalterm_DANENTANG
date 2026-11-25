@@ -7,6 +7,7 @@
 - App tính **chỉ số hư hại**, **mức độ** và **chi phí sửa chữa** theo bảng đơn giá do nhà trường quản lý.
 - Phiếu được ký xác nhận, lưu **ngoại tuyến** (Isar), tự đồng bộ lên **Supabase** khi có mạng.
 - Kết quả tổng hợp thành **báo cáo PDF A4**: chi phí theo tòa nhà, danh sách phòng cần ưu tiên sửa.
+- Trên phiếu, chạm vào **ảnh minh chứng** để AI khoanh vùng hư hỏng ngay trên ảnh (Android/iOS).
 
 Bản **web** là trung tâm quản lý: xem số liệu, báo cáo và quản lý bảng đơn giá.
 
@@ -115,7 +116,7 @@ supabase/
 └── seed/                  # 9 bề mặt mẫu của 2 tòa nhà, bảng đơn giá minh hoạ
 
 third_party/mobile_scanner/ # Bản vá mobile_scanner (xem PATCH_NOTES.md)
-assets/models/              # object_detection.tflite + labels.txt
+assets/models/              # damage_segmentation_v3.tflite + labels.txt
 docs/ai-training/           # Hướng dẫn train model phân vùng 4 lớp bề mặt
 docs/kiem-thu/              # Biên bản kiểm thử thủ công
 ```
@@ -131,7 +132,7 @@ docs/kiem-thu/              # Biên bản kiểm thử thủ công
 | `/repair-rates` | Bảng đơn giá sửa chữa (admin sửa) | ✅ | ✅ |
 | `/locations`, `/settings` | Địa điểm, Cài đặt | ✅ | ✅ |
 | `/scanner` | Quét thẻ QR + đo hư hỏng | ✅ | — ¹ |
-| `/audit-form` | Lập phiếu, đánh giá bề mặt | ✅ | — ² |
+| `/audit-form` | Lập phiếu, đánh giá bề mặt, khoanh vùng hư hỏng trên ảnh minh chứng | ✅ | — ² |
 | `/signature` | Ký xác nhận | ✅ | — ² |
 | `/sync`, `/sync/conflicts` | Đồng bộ, đối chiếu xung đột | ✅ | — ³ |
 
@@ -142,13 +143,14 @@ docs/kiem-thu/              # Biên bản kiểm thử thủ công
 
 ### Pipeline Edge AI
 
-- **Model:** YOLOv8n-seg **phân vùng 4 lớp bề mặt** (`best-newdomain2.pt`), thứ tự lớp: vết nứt, thấm nước / ẩm mốc, bong tróc sơn, gỉ sét. Xuất TFLite bằng `ultralytics` 8.4 (`format='tflite'`, 13,2 MB):
+- **Model:** YOLOv8n-seg **V3** phân vùng 4 lớp bề mặt, thứ tự lớp: vết nứt, thấm nước / ẩm mốc, bong tróc sơn, gỉ sét. Train 120 epoch ở 640 trên Kaggle; checkpoint `best.pt` xuất qua ONNX opset 13 sang TFLite float32 (`assets/models/damage_segmentation_v3.tflite`, 13,8 MB):
   - vào `1×3×640×640` (NCHW, RGB 0..1);
-  - ra `1×40×8400` (cx, cy, w, h + điểm 4 lớp + 32 hệ số mask) và `1×32×160×160` (proto mask).
+  - ra `1×40×8400` (cx, cy, w, h theo pixel 0..640 + điểm 4 lớp + 32 hệ số mask) và `1×32×160×160` (proto mask).
 
-  Ánh xạ lớp → loại hư hỏng ở `AiConfig.damageTypeByClass`. `ModelOutputLayout` tự nhận bố cục đầu ra lúc nạp, nên model phát hiện cũ (một đầu ra) vẫn chạy được. Hướng dẫn train và script: [`docs/ai-training/HUONG_DAN_TRAIN_MODEL_BE_MAT.md`](docs/ai-training/HUONG_DAN_TRAIN_MODEL_BE_MAT.md).
-- **Độ chính xác (tập val lúc train):** mAP50 mask 0,50, precision 0,62, recall 0,47 (bản trước: 0,40 / 0,60 / 0,37). Theo ma trận nhầm lẫn, tỉ lệ nhận đúng từng lớp: vết nứt 0,72, thấm/mốc 0,82, bong sơn 0,89, gỉ sét 0,87; báo nhầm trên nền chủ yếu là vết nứt và gỉ sét. Cần thêm ảnh chụp thật ở trường.
-- **Giải mã:** mỗi ô lấy lớp có điểm cao nhất, lọc theo ngưỡng `0.4` (vết nứt, gỉ sét `0.5`, `AiConfig.thresholdFor`), NMS theo từng lớp (IoU 0,45). Mask của mỗi vùng = tổng (hệ số × proto), cắt trong khung, ngưỡng xác suất 0,5 (`MaskPrototypes`). Đã đối chiếu với ultralytics trên cùng file TFLite: diện tích mask lệch dưới 0,5%.
+  Màn Quét (đo theo thẻ QR) và hộp thoại ảnh minh chứng dùng chung file này. Ánh xạ lớp → loại hư hỏng ở `AiConfig.damageTypeByClass`. `ModelOutputLayout` tự nhận bố cục đầu ra lúc nạp. Hướng dẫn train và script: [`docs/ai-training/HUONG_DAN_TRAIN_MODEL_BE_MAT.md`](docs/ai-training/HUONG_DAN_TRAIN_MODEL_BE_MAT.md).
+- **Mask AP50–95 trên tập test V3:** vết nứt **9,6%**, thấm mốc **21,2%**, bong sơn **26,0%**, gỉ sét **29,9%**. Vết nứt mảnh là trường hợp khó nhất; cần thêm ảnh chụp thật ở trường.
+- **Giải mã:** mỗi ô lấy lớp có điểm cao nhất, lọc theo ngưỡng `0.4` (`AiConfig.thresholdFor`), NMS theo từng lớp (IoU 0,45). Mask của mỗi vùng = tổng (hệ số × proto), cắt trong khung, ngưỡng xác suất 0,5 (`MaskPrototypes`). Đã đối chiếu với ultralytics: diện tích mask lệch dưới 0,5%.
+- **Ảnh minh chứng (Android/iOS):** trong phiếu, chạm vào ảnh đã đính kèm để mở hộp thoại **Vùng hư hỏng**. Ảnh được xoay đúng hướng, thu cạnh dài về 640 và đệm cạnh ngắn; lọc từ `0.3`, bỏ khung trùng cùng lớp (IoU > 0,5), tô tối đa 20 vùng lên bản xem trước và hiện điểm tin cậy từng lớp. Ảnh gốc vẫn được dùng khi lưu phiếu và xuất PDF.
 - **Phần cứng chạy:** iOS dùng **GPU delegate Metal** (cho phép FP16), lỗi thì tự chuyển sang CPU 4 luồng. Đo trên iPhone 11 Pro Max: phần mô hình mất 98–153 ms.
 - **Tiền xử lý:** AI chỉ nhận ô vuông giữa khung hình, cạnh bằng 70% cạnh ngắn (`AiConfig.cropFraction`), khớp khung xanh trên màn quét.
   - **iOS:** bản vá `mobile_scanner` cắt ô này về RGB 640×640 bằng CoreGraphics và gửi qua khóa `aiInput`. Toạ độ góc mã QR và ô cắt cùng nằm trên một ảnh gốc, nên phép quy đổi kích thước không phụ thuộc chiều xoay máy.
@@ -287,7 +289,7 @@ Biên bản kiểm thử thủ công nằm trong `docs/kiem-thu/`.
 | 9 | 26–28 | Supabase Auth + RLS, màn Địa điểm & Cài đặt, bản web quản lý |
 | 10 | — | Model YOLOv8s mới, Edge AI chạy GPU Metal, cắt ảnh theo khung quét ở phía native |
 | 11 | — | Thu hẹp phạm vi về cơ sở vật chất trường học: đo hư hỏng theo thẻ QR, chỉ số và chi phí sửa chữa, bảng đơn giá, báo cáo chi phí |
-| 12 | — | Model phân vùng 4 lớp bề mặt (YOLOv8n-seg), đo diện tích và chiều dài theo mask |
+| 12 | — | Model phân vùng V3 4 lớp bề mặt (YOLOv8n-seg): đo diện tích và chiều dài theo mask ở màn Quét, khoanh vùng hư hỏng trên ảnh minh chứng |
 
 ## Quy trình Git
 

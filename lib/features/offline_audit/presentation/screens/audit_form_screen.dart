@@ -16,6 +16,7 @@ import 'package:field_inventory_edge_ai/features/damage_assessment/domain/entiti
 import 'package:field_inventory_edge_ai/features/damage_assessment/domain/entities/surface_assessment.dart';
 import 'package:field_inventory_edge_ai/features/damage_assessment/presentation/surface_assessment_draft.dart';
 import 'package:field_inventory_edge_ai/features/damage_assessment/presentation/surface_assessment_section.dart';
+import 'package:field_inventory_edge_ai/features/edge_vision/data/repositories/damage_segmentation.dart';
 
 import '../../data/evidence_photo_store.dart';
 import '../../data/models/audit_record_model.dart';
@@ -1103,6 +1104,50 @@ class _EvidencePhotoStrip extends StatelessWidget {
 
   static const double _tile = 84;
 
+  void _openAnalysis(BuildContext context, Uint8List photo) {
+    final analysis = analyzeDamagePhoto(photo);
+    showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Vùng hư hỏng'),
+        content: SizedBox(
+          width: 480,
+          child: FutureBuilder(
+            future: analysis,
+            builder: (context, snapshot) {
+              final result = snapshot.data;
+              return SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Image.memory(result?.image ?? photo, fit: BoxFit.contain),
+                    const Gap(12),
+                    if (snapshot.connectionState != ConnectionState.done) ...[
+                      const LinearProgressIndicator(),
+                      const Gap(8),
+                      const Text('Đang phân tích ảnh…'),
+                    ] else if (snapshot.hasError)
+                      const Text('Không phân tích được ảnh. Hãy thử lại.')
+                    else if (result == null || result.labels.isEmpty)
+                      const Text('AI chưa phát hiện vùng hư hỏng.')
+                    else
+                      Text(result.labels.join(' · ')),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Đóng'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -1130,10 +1175,18 @@ class _EvidencePhotoStrip extends StatelessWidget {
                                   color: FlColors.muted,
                                 ),
                               )
-                            : Image.memory(
-                                bytes[name]!,
-                                fit: BoxFit.cover,
-                                gaplessPlayback: true,
+                            : InkWell(
+                                onTap: enabled && supportsDamageSegmentation
+                                    ? () => _openAnalysis(context, bytes[name]!)
+                                    : null,
+                                child: Image.memory(
+                                  bytes[name]!,
+                                  fit: BoxFit.cover,
+                                  gaplessPlayback: true,
+                                  semanticLabel: supportsDamageSegmentation
+                                      ? 'Phân tích ảnh minh chứng bằng AI'
+                                      : 'Ảnh minh chứng',
+                                ),
                               ),
                       ),
                     ),
@@ -1202,6 +1255,10 @@ class _EvidencePhotoStrip extends StatelessWidget {
               ),
           ],
         ),
+        if (supportsDamageSegmentation && bytes.isNotEmpty) ...[
+          const Gap(8),
+          const Text('Chạm vào ảnh để AI khoanh vùng hư hỏng.'),
+        ],
         const Gap(8),
         Text(
           '${files.length}/$maxEvidencePhotos ảnh',
