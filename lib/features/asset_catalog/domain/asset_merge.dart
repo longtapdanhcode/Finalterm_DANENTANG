@@ -5,14 +5,14 @@ import 'entities/asset_status.dart';
 
 /// Các trường của tài sản được đối chiếu khi đồng bộ, theo thứ tự hiển thị.
 const assetFieldLabels = <String, String>{
-  'name': 'Tên tài sản',
+  'name': 'Tên bề mặt',
   'category': 'Chất liệu / loại',
   'area': 'Tòa nhà / tầng',
   'location': 'Phòng',
   'quantity': 'Số lượng',
   'surface_area_m2': 'Diện tích bề mặt (m²)',
   'status': 'Tình trạng',
-  'last_audit_at': 'Lần kiểm kê gần nhất',
+  'last_audit_at': 'Lần đánh giá gần nhất',
 };
 
 /// Nội dung của tài sản để so sánh giữa các phiên bản (bỏ mã và thời điểm sửa).

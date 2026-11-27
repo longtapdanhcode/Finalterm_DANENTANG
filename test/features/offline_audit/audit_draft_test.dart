@@ -11,7 +11,7 @@ void main() {
   AuditRecordModel record(int id, {List<int>? signature}) =>
       AuditRecordModel(id)
         ..scanCode = 'TS-$id'
-        ..assetName = 'Tài sản $id'
+        ..assetName = 'Bề mặt $id'
         ..quantity = 1
         ..signatureBytes = signature
         ..timestamp = DateTime(2026, 10, 26);
@@ -69,7 +69,7 @@ void main() {
       ..condition = 'check'
       ..notes = 'ghi chú'
       ..signerName = 'Hoàng An'
-      ..signerRole = 'Kiểm kê viên'
+      ..signerRole = 'Kiểm tra viên'
       ..photoFiles = ['a.jpg', 'b.jpg']
       ..timestamp = DateTime(2026, 10, 28, 9)
       ..isSynced = true;

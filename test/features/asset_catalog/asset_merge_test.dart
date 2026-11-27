@@ -68,7 +68,7 @@ void main() {
       expect(m.merged['quantity'], 3);
     });
 
-    test('lần kiểm kê gần nhất cùng đổi thì lấy lần muộn hơn', () {
+    test('lần đánh giá gần nhất cùng đổi thì lấy lần muộn hơn', () {
       final m = mergeAsset(
         base: base,
         local: {...base, 'last_audit_at': '2026-10-27T08:00:00.000Z'},
@@ -89,7 +89,7 @@ void main() {
   });
 
   group('planCatalogSync', () {
-    test('tài sản không đổi trên máy: lấy bản máy chủ', () {
+    test('bề mặt không đổi trên máy: lấy bản máy chủ', () {
       final local = _asset('A');
       final remote = _remote(local, (a) => a.quantity = 9);
       final plan = planCatalogSync(locals: [local], remote: [remote]);
@@ -142,7 +142,7 @@ void main() {
       expect(stored.conflictRemote!.quantity, 7);
     });
 
-    test('tài sản mới trên máy: đẩy lên; tài sản mới trên máy chủ: kéo về', () {
+    test('bề mặt mới trên máy: đẩy lên; bề mặt mới trên máy chủ: kéo về', () {
       final mine = _asset('MOI', synced: false);
       final theirs = _asset('KHAC');
       final plan = planCatalogSync(locals: [mine], remote: [theirs]);
@@ -191,7 +191,7 @@ void main() {
       expect(resolved.isSynced, isTrue);
     });
 
-    test('tài sản không có xung đột thì bỏ qua', () {
+    test('bề mặt không có xung đột thì bỏ qua', () {
       expect(resolveAssetConflict(_asset('A'), const {}), isNull);
     });
   });

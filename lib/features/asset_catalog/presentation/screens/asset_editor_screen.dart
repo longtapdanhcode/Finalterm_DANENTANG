@@ -118,7 +118,7 @@ class _AssetEditorScreenState extends ConsumerState<AssetEditorScreen> {
       if (mounted) {
         showFlSnack(
           context,
-          'Mã $code đã có trong danh mục. Hãy dùng mã khác hoặc sửa tài sản đó.',
+          'Mã $code đã có trong danh mục. Hãy dùng mã khác hoặc sửa bề mặt đó.',
           tone: FlTone.warning,
         );
       }
@@ -140,7 +140,7 @@ class _AssetEditorScreenState extends ConsumerState<AssetEditorScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _saving = false);
-        showFlSnack(context, 'Không lưu được tài sản: $e', tone: FlTone.danger);
+        showFlSnack(context, 'Không lưu được bề mặt: $e', tone: FlTone.danger);
       }
       return;
     }
@@ -161,8 +161,8 @@ class _AssetEditorScreenState extends ConsumerState<AssetEditorScreen> {
     showFlSnack(
       context,
       synced
-          ? 'Đã lưu và đồng bộ tài sản $code.'
-          : 'Đã lưu tài sản $code trên máy, sẽ đồng bộ khi có mạng.',
+          ? 'Đã lưu và đồng bộ bề mặt $code.'
+          : 'Đã lưu bề mặt $code trên máy, sẽ đồng bộ khi có mạng.',
       tone: FlTone.success,
     );
     context.canPop() ? context.pop() : context.go('/assets');
@@ -192,14 +192,14 @@ class _AssetEditorScreenState extends ConsumerState<AssetEditorScreen> {
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Text(
-            'Không tìm thấy tài sản ${widget.code} trên máy.',
+            'Không tìm thấy bề mặt ${widget.code} trên máy.',
             style: const TextStyle(color: FlColors.muted),
           ),
         ),
       );
     }
 
-    final title = widget.isNew ? 'Thêm tài sản' : 'Sửa tài sản';
+    final title = widget.isNew ? 'Thêm bề mặt' : 'Sửa bề mặt';
     final fields = _buildFields();
 
     return Form(
@@ -209,8 +209,8 @@ class _AssetEditorScreenState extends ConsumerState<AssetEditorScreen> {
               heading: DesktopPageHeading(
                 title: title,
                 subtitle: widget.isNew
-                    ? 'Thêm tài sản mới vào danh mục dùng chung.'
-                    : 'Cập nhật thông tin và tình trạng của tài sản.',
+                    ? 'Thêm bề mặt mới vào danh mục dùng chung.'
+                    : 'Cập nhật thông tin và tình trạng của bề mặt.',
               ),
               children: [
                 FlCard(
@@ -265,7 +265,7 @@ class _AssetEditorScreenState extends ConsumerState<AssetEditorScreen> {
                       OutlinedButton.icon(
                         onPressed: _saving ? null : _startAudit,
                         icon: const Icon(Icons.description_outlined, size: 18),
-                        label: const Text('Lập phiếu kiểm kê'),
+                        label: const Text('Lập phiếu đánh giá'),
                       ),
                     ],
                     const Spacer(),
@@ -281,7 +281,7 @@ class _AssetEditorScreenState extends ConsumerState<AssetEditorScreen> {
                               ),
                             )
                           : const Icon(Icons.check_rounded, size: 18),
-                      label: Text(_saving ? 'Đang lưu...' : 'Lưu tài sản'),
+                      label: Text(_saving ? 'Đang lưu...' : 'Lưu bề mặt'),
                     ),
                   ],
                 ),
@@ -297,7 +297,7 @@ class _AssetEditorScreenState extends ConsumerState<AssetEditorScreen> {
                       child: const Text('Lập phiếu'),
                     ),
               bottomAction: MobilePrimaryButton(
-                label: 'Lưu tài sản',
+                label: 'Lưu bề mặt',
                 loading: _saving,
                 onPressed: _save,
               ),
@@ -332,14 +332,14 @@ class _AssetEditorScreenState extends ConsumerState<AssetEditorScreen> {
   _buildFields() {
     return (
       code: FlTextField(
-        label: 'Mã tài sản *',
+        label: 'Mã bề mặt *',
         controller: _code,
         hint: 'Ví dụ: TS-DC-0142',
         enabled: widget.isNew,
         textCapitalization: TextCapitalization.characters,
         validator: (v) {
           final t = v?.trim() ?? '';
-          if (t.isEmpty) return 'Vui lòng nhập mã tài sản';
+          if (t.isEmpty) return 'Vui lòng nhập mã bề mặt';
           if (!RegExp(r'^[A-Za-z0-9._-]+$').hasMatch(t)) {
             return 'Chỉ dùng chữ, số, dấu chấm, gạch ngang, gạch dưới';
           }
@@ -347,12 +347,11 @@ class _AssetEditorScreenState extends ConsumerState<AssetEditorScreen> {
         },
       ),
       name: FlTextField(
-        label: 'Tên tài sản *',
+        label: 'Tên bề mặt *',
         controller: _name,
         hint: 'Ví dụ: Động cơ điện Siemens 3 pha',
-        validator: (v) => (v == null || v.trim().isEmpty)
-            ? 'Vui lòng nhập tên tài sản'
-            : null,
+        validator: (v) =>
+            (v == null || v.trim().isEmpty) ? 'Vui lòng nhập tên bề mặt' : null,
       ),
       category: FlTextField(
         label: 'Chất liệu / loại',

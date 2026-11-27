@@ -195,7 +195,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
     return _AuthLayout(
       title: 'Đăng ký tài khoản',
-      subtitle: 'Tài khoản mới có vai trò Kiểm kê viên.',
+      subtitle: 'Tài khoản mới có vai trò Kiểm tra viên.',
       child: Form(
         key: _formKey,
         child: AutofillGroup(

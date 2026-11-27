@@ -42,7 +42,7 @@ class AuditSummary {
   final double? estimatedCost;
 
   String get amountLabel =>
-      estimatedCost != null ? formatVnd(estimatedCost!) : '$quantity thiết bị';
+      estimatedCost != null ? formatVnd(estimatedCost!) : '$quantity mục';
 
   String get displayName => name.isNotEmpty ? name : label;
 }
@@ -82,7 +82,7 @@ class _SignatureScreenState extends ConsumerState<SignatureScreen> {
     text: ref.read(signedInUserProvider)?.displayName ?? '',
   );
   late final _roleController = TextEditingController(
-    text: ref.read(signedInUserProvider)?.role.label ?? 'Kiểm kê viên',
+    text: ref.read(signedInUserProvider)?.role.label ?? 'Kiểm tra viên',
   );
 
   String get _auditorName => ref.read(signedInUserProvider)?.displayName ?? '';
@@ -142,7 +142,7 @@ class _SignatureScreenState extends ConsumerState<SignatureScreen> {
     if (!_confirmed) {
       showFlSnack(
         context,
-        'Vui lòng xác nhận thông tin kiểm kê là chính xác.',
+        'Vui lòng xác nhận thông tin đánh giá là chính xác.',
         tone: FlTone.warning,
       );
       return;
@@ -246,12 +246,12 @@ class _SignatureScreenState extends ConsumerState<SignatureScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const CardHeader(title: 'Tóm tắt phiếu kiểm kê'),
+          const CardHeader(title: 'Tóm tắt phiếu đánh giá'),
           const Gap(20),
           const StatusPill(label: 'Phiếu mới', tone: FlTone.info),
           const Gap(12),
-          KeyValueRow(label: 'Tài sản', value: _value(s?.displayName)),
-          KeyValueRow(label: 'Mã tài sản', value: _value(s?.scanCode)),
+          KeyValueRow(label: 'Bề mặt', value: _value(s?.displayName)),
+          KeyValueRow(label: 'Mã bề mặt', value: _value(s?.scanCode)),
           KeyValueRow(label: 'Tòa nhà / tầng', value: _value(s?.area)),
           KeyValueRow(label: 'Phòng', value: _value(s?.location)),
           KeyValueRow(
@@ -260,7 +260,7 @@ class _SignatureScreenState extends ConsumerState<SignatureScreen> {
                 : 'Số lượng thực tế',
             value: _value(s?.amountLabel),
           ),
-          KeyValueRow(label: 'Người kiểm kê', value: _value(_auditorName)),
+          KeyValueRow(label: 'Người kiểm tra', value: _value(_auditorName)),
           KeyValueRow(
             label: 'Thời gian',
             value: _value(
@@ -328,7 +328,7 @@ class _SignatureScreenState extends ConsumerState<SignatureScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Tôi xác nhận thông tin và số lượng kiểm kê là chính xác.',
+                        'Tôi xác nhận kết quả đánh giá là chính xác.',
                         style: TextStyle(fontSize: 13),
                       ),
                       Gap(10),
@@ -348,7 +348,7 @@ class _SignatureScreenState extends ConsumerState<SignatureScreen> {
 
     return DesktopPage(
       heading: const DesktopPageHeading(
-        title: 'Ký xác nhận kiểm kê',
+        title: 'Ký xác nhận phiếu',
         subtitle: 'Rà soát phiếu và ký xác nhận trước khi hoàn tất ghi nhận.',
       ),
       children: [
@@ -386,7 +386,7 @@ class _SignatureScreenState extends ConsumerState<SignatureScreen> {
                       )
                     : const Icon(Icons.check_rounded, size: 18),
                 label: Text(
-                  _isExporting ? 'Đang lưu...' : 'Hoàn tất & lưu phiếu kiểm kê',
+                  _isExporting ? 'Đang lưu...' : 'Hoàn tất & lưu phiếu',
                 ),
               ),
             ),
@@ -407,7 +407,7 @@ class _SignatureScreenState extends ConsumerState<SignatureScreen> {
         label: 'Xác nhận phiếu',
       ),
       bottomAction: MobilePrimaryButton(
-        label: 'Hoàn tất kiểm kê',
+        label: 'Hoàn tất đánh giá',
         loading: _isExporting,
         onPressed: _handleConfirm,
       ),
@@ -426,7 +426,7 @@ class _SignatureScreenState extends ConsumerState<SignatureScreen> {
                     Text(
                       s?.displayName.isNotEmpty ?? false
                           ? s!.displayName
-                          : 'Phiếu kiểm kê',
+                          : 'Phiếu đánh giá',
                       style: const TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
@@ -434,7 +434,7 @@ class _SignatureScreenState extends ConsumerState<SignatureScreen> {
                     ),
                     const Gap(4),
                     Text(
-                      'Người kiểm kê: $_auditorName',
+                      'Người kiểm tra: $_auditorName',
                       style: TextStyle(fontSize: 12, color: FlColors.muted),
                     ),
                   ],
@@ -572,8 +572,8 @@ class _Stepper extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Row(
         children: [
-          segment('Thông tin tài sản'),
-          segment('Kiểm kê thực tế'),
+          segment('Thông tin bề mặt'),
+          segment('Đánh giá thực tế'),
           Expanded(child: step('Ký xác nhận', done: false, number: '3')),
         ],
       ),

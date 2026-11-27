@@ -7,6 +7,12 @@ import 'package:go_router/go_router.dart';
 
 import '../../helpers/evidence_fakes.dart';
 
+import 'package:field_inventory_edge_ai/features/asset_catalog/data/models/asset_model.dart';
+import 'package:field_inventory_edge_ai/features/asset_catalog/domain/repositories/asset_catalog_repository.dart';
+import 'package:field_inventory_edge_ai/features/asset_catalog/presentation/controllers/asset_catalog_providers.dart';
+import 'package:field_inventory_edge_ai/features/damage_assessment/data/repair_rate_repository.dart';
+import 'package:field_inventory_edge_ai/features/damage_assessment/data/sample_repair_rates.dart';
+import 'package:field_inventory_edge_ai/features/damage_assessment/domain/entities/repair_rate.dart';
 import 'package:field_inventory_edge_ai/features/offline_audit/data/evidence_photo_store.dart';
 import 'package:field_inventory_edge_ai/features/offline_audit/data/models/audit_record_model.dart';
 import 'package:field_inventory_edge_ai/features/offline_audit/data/repositories/isar_audit_repository_impl.dart';
@@ -36,6 +42,24 @@ class MockAuditRepository implements AuditRepository {
   }
 }
 
+class _Catalog implements AssetCatalogRepository {
+  _Catalog(this.asset);
+  final AssetModel asset;
+
+  @override
+  Stream<List<AssetModel>> watchAll() => Stream.value([asset]);
+  @override
+  Future<AssetModel?> findByCode(String code) async =>
+      code == asset.code ? asset : null;
+  @override
+  Future<void> save(AssetModel a) async {}
+  @override
+  Future<CatalogSyncResult> sync() async =>
+      const CatalogSyncResult(pushed: 0, pulled: 0);
+  @override
+  Future<void> resolveConflict(String code, Set<String> fields) async {}
+}
+
 /// Kích thước khung web 1440×1000 của Figma (bố cục desktop).
 void useDesktopView(WidgetTester tester) {
   tester.view.physicalSize = const Size(1440, 1000);
@@ -51,7 +75,11 @@ void main() {
       mockRepo = MockAuditRepository();
     });
 
-    Widget createTestWidget({required String scanCode, String? aiLabel}) {
+    Widget createTestWidget({
+      required String scanCode,
+      String? aiLabel,
+      AssetCatalogRepository? catalog,
+    }) {
       final router = GoRouter(
         initialLocation: '/audit-form',
         routes: [
@@ -70,7 +98,17 @@ void main() {
       );
 
       return ProviderScope(
-        overrides: [isarAuditRepositoryProvider.overrideWithValue(mockRepo)],
+        overrides: [
+          isarAuditRepositoryProvider.overrideWithValue(mockRepo),
+          if (catalog != null)
+            assetCatalogRepositoryProvider.overrideWithValue(catalog),
+          repairRateTableProvider.overrideWith(
+            (ref) async => const RepairRateTable(
+              sampleRepairRates,
+              source: RepairRateSource.sample,
+            ),
+          ),
+        ],
         child: MaterialApp.router(routerConfig: router),
       );
     }
@@ -87,12 +125,44 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Lập phiếu kiểm kê'), findsOneWidget);
+      expect(find.text('Phiếu đánh giá bề mặt'), findsWidgets);
       expect(find.text('DEVICE-ABC-999'), findsOneWidget);
-      // Nhãn AI điền sẵn cả "Loại thiết bị" và "Tên tài sản".
-      expect(find.text('Laptop ThinkPad'), findsNWidgets(2));
+      // Nhãn AI là loại hư hỏng: không điền vào tên hay loại bề mặt. Mã chưa
+      // có trong danh mục nên loại bề mặt lấy theo chất liệu mặc định.
+      expect(find.text('Laptop ThinkPad'), findsNothing);
+      expect(find.widgetWithText(TextFormField, 'Tường sơn'), findsOneWidget);
       expect(find.text('01'), findsOneWidget);
       expect(find.text('Tiếp tục ký xác nhận'), findsOneWidget);
+    });
+
+    testWidgets('Mã có trong danh mục: tự điền tên, tòa nhà, phòng, loại', (
+      tester,
+    ) async {
+      useDesktopView(tester);
+      final asset = AssetModel('A-T1-A101-TT')
+        ..name = 'Tường trái'
+        ..category = 'Tường sơn'
+        ..area = 'Nhà A • Tầng 1'
+        ..location = 'Phòng A101'
+        ..surfaceAreaM2 = 21.6;
+      await tester.pumpWidget(
+        createTestWidget(
+          scanCode: 'A-T1-A101-TT',
+          aiLabel: 'Gỉ sét',
+          catalog: _Catalog(asset),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.widgetWithText(TextFormField, 'Tường trái'), findsOneWidget);
+      expect(
+        find.widgetWithText(TextFormField, 'Nhà A • Tầng 1'),
+        findsOneWidget,
+      );
+      expect(find.widgetWithText(TextFormField, 'Phòng A101'), findsOneWidget);
+      expect(find.widgetWithText(TextFormField, 'Tường sơn'), findsOneWidget);
+      expect(find.text('21,6'), findsOneWidget);
+      expect(find.text('Gỉ sét'), findsNothing);
     });
 
     testWidgets('Quick add buttons increment quantity', (tester) async {
@@ -150,14 +220,14 @@ void main() {
       expect(mockRepo.records.length, 1);
       final record = mockRepo.records.first;
       expect(record.scanCode, 'DEVICE-TEST-001');
-      expect(record.aiDetectedLabel, 'Monitor 27-inch');
+      expect(record.aiDetectedLabel, 'Tường sơn');
       expect(record.quantity, 1);
       expect(record.area, 'Kho trung tâm');
       expect(record.location, isNull);
       expect(record.condition, 'check');
       expect(record.notes, 'Màn hình bị sọc');
-      // Tên tài sản được điền sẵn từ nhãn AI và lưu cùng phiếu.
-      expect(record.assetName, 'Monitor 27-inch');
+      // Nhãn AI không bị lưu thành tên bề mặt.
+      expect(record.assetName, isNull);
       expect(record.signerName, isNull);
     });
 

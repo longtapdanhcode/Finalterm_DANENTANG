@@ -109,7 +109,7 @@ void main() {
       return container;
     }
 
-    testWidgets('không có Quét mã, Phiếu kiểm kê, Đồng bộ trên thanh bên', (
+    testWidgets('không có Quét mã, Phiếu đánh giá, Đồng bộ trên thanh bên', (
       tester,
     ) async {
       await pump(tester, const Size(1440, 1000));
@@ -117,7 +117,7 @@ void main() {
       expect(find.text('Phòng & bề mặt'), findsWidgets);
       expect(find.text('Báo cáo'), findsOneWidget);
       expect(find.text('Quét mã & AI'), findsNothing);
-      expect(find.text('Phiếu kiểm kê'), findsNothing);
+      expect(find.text('Phiếu đánh giá'), findsNothing);
       expect(find.text('Đồng bộ dữ liệu'), findsNothing);
       expect(find.text('Quét bằng app điện thoại'), findsOneWidget);
       expect(find.text('Xem báo cáo'), findsOneWidget);
@@ -135,7 +135,7 @@ void main() {
     testWidgets('mobile web: thanh dưới không có Quét mã', (tester) async {
       await pump(tester, const Size(400, 900));
       expect(find.text('Quét mã'), findsNothing);
-      expect(find.text('Tài sản'), findsWidgets);
+      expect(find.text('Bề mặt'), findsWidgets);
     });
   });
 

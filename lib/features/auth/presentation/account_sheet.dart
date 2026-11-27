@@ -122,6 +122,15 @@ Future<void> showAccountSheet(BuildContext context, WidgetRef ref) {
                 ),
                 ListTile(
                   contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.payments_outlined),
+                  title: const Text('Đơn giá sửa chữa'),
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    GoRouter.of(context).push('/repair-rates');
+                  },
+                ),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
                   leading: const Icon(Icons.settings_outlined),
                   title: const Text('Cài đặt'),
                   onTap: () {

@@ -153,6 +153,31 @@ void main() {
   });
 
   test(
+    'Không có thẻ QR: mang loại hư hỏng AI thấy sang phiếu, số đo 0',
+    () async {
+      vision.next = const VisionAnalysis(
+        labels: ['Thấm nước / ẩm mốc (88.0%)'],
+        detections: [_water, _chair],
+      );
+      final notifier = c.read(scannerControllerProvider.notifier);
+      await notifier.processCameraFrame(capture(barcodes: const []));
+
+      final m = notifier.measurementWithoutMarker()!;
+      expect(m.hasScale, isFalse);
+      expect(m.ignoredDetections, 1);
+      expect(m.measurements.single.type, DamageType.waterMold);
+      expect(m.measurements.single.quantity, 0);
+    },
+  );
+
+  test('AI chưa thấy hư hỏng: không có gì để mang sang phiếu', () async {
+    vision.next = const VisionAnalysis();
+    final notifier = c.read(scannerControllerProvider.notifier);
+    await notifier.processCameraFrame(capture(barcodes: const []));
+    expect(notifier.measurementWithoutMarker(), isNull);
+  });
+
+  test(
     'AI còn bận khung trước: chờ xong rồi đo lại chính khung có mã',
     () async {
       final notifier = c.read(scannerControllerProvider.notifier);

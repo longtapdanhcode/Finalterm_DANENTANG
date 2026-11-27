@@ -90,7 +90,7 @@ class _AssetsScreenState extends ConsumerState<AssetsScreen> {
     final selected = visible.where((a) => _selected.contains(a.code)).toList();
     final toExport = selected.isNotEmpty ? selected : visible;
     try {
-      showFlSnack(context, 'Đang tạo danh sách ${toExport.length} tài sản...');
+      showFlSnack(context, 'Đang tạo danh sách ${toExport.length} bề mặt...');
       final bytes = await PdfReportGenerator.generateAssetList(toExport);
       await Printing.sharePdf(bytes: bytes, filename: 'danh_sach_tai_san.pdf');
     } catch (e) {
@@ -114,12 +114,12 @@ class _AssetsScreenState extends ConsumerState<AssetsScreen> {
     child: Column(
       children: [
         const Text(
-          'Chưa có tài sản nào trên máy.',
+          'Chưa có bề mặt nào trên máy.',
           style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
         ),
         const Gap(6),
         const Text(
-          'Đồng bộ để tải danh mục tài sản từ máy chủ.',
+          'Đồng bộ để tải danh mục bề mặt từ máy chủ.',
           textAlign: TextAlign.center,
           style: TextStyle(fontSize: 13, color: FlColors.muted),
         ),
@@ -134,7 +134,7 @@ class _AssetsScreenState extends ConsumerState<AssetsScreen> {
   );
 
   String _lastAudit(AssetModel a) =>
-      a.lastAuditAt == null ? 'Chưa kiểm kê' : flDate(a.lastAuditAt!);
+      a.lastAuditAt == null ? 'Chưa đánh giá' : flDate(a.lastAuditAt!);
 
   Widget _buildDesktop(BuildContext context, List<AssetModel> all) {
     final assets = _filtered(all);
@@ -145,11 +145,11 @@ class _AssetsScreenState extends ConsumerState<AssetsScreen> {
     return DesktopPage(
       heading: DesktopPageHeading(
         title: 'Phòng & bề mặt',
-        subtitle: 'Danh mục tài sản và tình trạng mới nhất từ các đợt kiểm kê.',
+        subtitle: 'Danh mục bề mặt và tình trạng mới nhất từ các đợt khảo sát.',
         action: FilledButton.icon(
           onPressed: _addAsset,
           icon: const Icon(Icons.add_rounded, size: 18),
-          label: const Text('Thêm tài sản'),
+          label: const Text('Thêm bề mặt'),
         ),
       ),
       children: [
@@ -159,7 +159,7 @@ class _AssetsScreenState extends ConsumerState<AssetsScreen> {
             child: Row(
               children: [
                 for (final (i, m) in [
-                  (stats.total, 'Tổng tài sản'),
+                  (stats.total, 'Tổng bề mặt'),
                   (stats.good, 'Hoạt động tốt'),
                   (stats.needsCheck, 'Cần kiểm tra'),
                   (stats.retired, 'Ngừng sử dụng'),
@@ -210,7 +210,7 @@ class _AssetsScreenState extends ConsumerState<AssetsScreen> {
                         controller: _search,
                         onChanged: (_) => setState(() {}),
                         decoration: const InputDecoration(
-                          hintText: 'Tìm theo tên, mã tài sản, số serial…',
+                          hintText: 'Tìm theo tên, mã bề mặt, phòng…',
                           fillColor: FlColors.background,
                           prefixIcon: Icon(
                             Icons.search_rounded,
@@ -275,7 +275,7 @@ class _AssetsScreenState extends ConsumerState<AssetsScreen> {
                     Expanded(flex: 3, child: SectionLabel('Tòa nhà')),
                     Expanded(flex: 2, child: SectionLabel('Số lượng')),
                     Expanded(flex: 3, child: SectionLabel('Tình trạng')),
-                    Expanded(flex: 2, child: SectionLabel('Kiểm kê gần nhất')),
+                    Expanded(flex: 2, child: SectionLabel('Đánh giá gần nhất')),
                   ],
                 ),
               ),
@@ -285,7 +285,7 @@ class _AssetsScreenState extends ConsumerState<AssetsScreen> {
                 const Padding(
                   padding: EdgeInsets.all(28),
                   child: Text(
-                    'Không có tài sản phù hợp với bộ lọc.',
+                    'Không có bề mặt phù hợp với bộ lọc.',
                     style: TextStyle(fontSize: 13, color: FlColors.muted),
                   ),
                 ),
@@ -296,7 +296,7 @@ class _AssetsScreenState extends ConsumerState<AssetsScreen> {
                 child: Row(
                   children: [
                     Text(
-                      'Hiển thị ${flNumber(assets.length)} trong ${flNumber(stats.total)} tài sản',
+                      'Hiển thị ${flNumber(assets.length)} trong ${flNumber(stats.total)} bề mặt',
                       style: const TextStyle(
                         fontSize: 12,
                         color: FlColors.muted,
@@ -428,7 +428,7 @@ class _AssetsScreenState extends ConsumerState<AssetsScreen> {
       title: 'Phòng & bề mặt',
       trailing: IconButton.filled(
         onPressed: _addAsset,
-        tooltip: 'Thêm tài sản',
+        tooltip: 'Thêm bề mặt',
         style: IconButton.styleFrom(backgroundColor: FlColors.primary),
         icon: const Icon(Icons.add_rounded, color: Colors.white),
       ),
@@ -437,7 +437,7 @@ class _AssetsScreenState extends ConsumerState<AssetsScreen> {
           controller: _search,
           onChanged: (_) => setState(() {}),
           decoration: const InputDecoration(
-            hintText: 'Tìm theo tên hoặc mã tài sản',
+            hintText: 'Tìm theo tên hoặc mã bề mặt',
             prefixIcon: Icon(
               Icons.search_rounded,
               size: 20,
@@ -469,7 +469,7 @@ class _AssetsScreenState extends ConsumerState<AssetsScreen> {
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 24),
             child: Text(
-              'Không có tài sản phù hợp.',
+              'Không có bề mặt phù hợp.',
               style: TextStyle(fontSize: 13, color: FlColors.muted),
             ),
           ),
@@ -583,9 +583,9 @@ class _Tabs extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tabs = [
-      (_AssetFilter.all, 'Tất cả tài sản'),
+      (_AssetFilter.all, 'Tất cả bề mặt'),
       (_AssetFilter.needsCheck, 'Cần kiểm tra ${stats.needsCheck}'),
-      (_AssetFilter.notAudited, 'Chưa kiểm kê ${stats.notAudited}'),
+      (_AssetFilter.notAudited, 'Chưa đánh giá ${stats.notAudited}'),
     ];
     return Container(
       decoration: const BoxDecoration(

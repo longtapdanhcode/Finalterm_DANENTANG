@@ -89,7 +89,7 @@ Finder _field(String label) => find.descendant(
 );
 
 Future<void> _tapSave(WidgetTester tester) async {
-  final save = find.text('Lưu tài sản');
+  final save = find.text('Lưu bề mặt');
   await tester.ensureVisible(save);
   await tester.tap(save);
   await tester.pumpAndSettle();
@@ -102,8 +102,8 @@ void main() {
     final catalog = _MemoryCatalog();
     await _pump(tester, catalog);
 
-    await tester.enterText(_field('Mã tài sản *'), 'ts-new-0001');
-    await tester.enterText(_field('Tên tài sản *'), 'Máy nén khí Atlas');
+    await tester.enterText(_field('Mã bề mặt *'), 'ts-new-0001');
+    await tester.enterText(_field('Tên bề mặt *'), 'Máy nén khí Atlas');
     await tester.enterText(_field('Tòa nhà / tầng'), 'Kho trung tâm');
     await tester.enterText(_field('Số lượng *'), '3');
     await tester.ensureVisible(find.text('Hư hỏng'));
@@ -125,8 +125,8 @@ void main() {
     final catalog = _MemoryCatalog();
     await _pump(tester, catalog, online: false);
 
-    await tester.enterText(_field('Mã tài sản *'), 'TS-OFF-1');
-    await tester.enterText(_field('Tên tài sản *'), 'Tủ lạnh mẫu');
+    await tester.enterText(_field('Mã bề mặt *'), 'TS-OFF-1');
+    await tester.enterText(_field('Tên bề mặt *'), 'Tủ lạnh mẫu');
     await _tapSave(tester);
 
     expect(catalog.items['TS-OFF-1'], isNotNull);
@@ -140,8 +140,8 @@ void main() {
     ]);
     await _pump(tester, catalog);
 
-    await tester.enterText(_field('Mã tài sản *'), 'ts-dc-0142');
-    await tester.enterText(_field('Tên tài sản *'), 'Trùng mã');
+    await tester.enterText(_field('Mã bề mặt *'), 'ts-dc-0142');
+    await tester.enterText(_field('Tên bề mặt *'), 'Trùng mã');
     await _tapSave(tester);
 
     expect(catalog.items['TS-DC-0142']!.name, 'Động cơ');
@@ -154,8 +154,8 @@ void main() {
 
     await _tapSave(tester);
 
-    expect(find.text('Vui lòng nhập mã tài sản'), findsOneWidget);
-    expect(find.text('Vui lòng nhập tên tài sản'), findsOneWidget);
+    expect(find.text('Vui lòng nhập mã bề mặt'), findsOneWidget);
+    expect(find.text('Vui lòng nhập tên bề mặt'), findsOneWidget);
     expect(catalog.items, isEmpty);
   });
 
@@ -170,8 +170,8 @@ void main() {
     ]);
     await _pump(tester, catalog, code: 'TS-BOM-0248');
 
-    expect(find.text('Sửa tài sản'), findsOneWidget);
-    final codeField = tester.widget<TextFormField>(_field('Mã tài sản *'));
+    expect(find.text('Sửa bề mặt'), findsOneWidget);
+    final codeField = tester.widget<TextFormField>(_field('Mã bề mặt *'));
     expect(codeField.enabled, isFalse);
 
     await tester.enterText(_field('Số lượng *'), '10');
