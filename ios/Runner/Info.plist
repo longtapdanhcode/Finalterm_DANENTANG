@@ -8,6 +8,8 @@
 	<false/>
 	<key>NSCameraUsageDescription</key>
 	<string>Ứng dụng cần quyền truy cập camera để quét mã kiểm kê</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Ứng dụng cần chọn ảnh từ thư viện để đính kèm minh chứng kiểm kê</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>

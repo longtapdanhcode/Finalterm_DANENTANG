@@ -151,12 +151,12 @@ docs/kiem-thu/              # Biên bản kiểm thử thủ công
 - **Mask AP50–95 trên tập test V3:** vết nứt **9,6%**, thấm mốc **21,2%**, bong sơn **26,0%**, gỉ sét **29,9%**. Vết nứt mảnh là trường hợp khó nhất; cần thêm ảnh chụp thật ở trường.
 - **Giải mã:** mỗi ô lấy lớp có điểm cao nhất, lọc theo ngưỡng `0.4` (`AiConfig.thresholdFor`), NMS theo từng lớp (IoU 0,45). Mask của mỗi vùng = tổng (hệ số × proto), cắt trong khung, ngưỡng xác suất 0,5 (`MaskPrototypes`). Đã đối chiếu với ultralytics: diện tích mask lệch dưới 0,5%.
 - **Ảnh minh chứng (Android/iOS):** trong phiếu, chạm vào ảnh đã đính kèm để mở hộp thoại **Vùng hư hỏng**. Ảnh được xoay đúng hướng, thu cạnh dài về 640 và đệm cạnh ngắn; lọc từ `0.3`, bỏ khung trùng cùng lớp (IoU > 0,5), tô tối đa 20 vùng lên bản xem trước và hiện điểm tin cậy từng lớp. Ảnh gốc vẫn được dùng khi lưu phiếu và xuất PDF.
-- **Phần cứng chạy:** iOS dùng **GPU delegate Metal** (cho phép FP16), lỗi thì tự chuyển sang CPU 4 luồng. Đo trên iPhone 11 Pro Max: phần mô hình mất 98–153 ms.
+- **Phần cứng chạy:** iOS thử **GPU delegate Metal** (cho phép FP16), lỗi thì tự chuyển sang CPU 4 luồng. Với file V3 hiện tại (xuất qua ONNX, có phép `SHAPE` / `GATHER` / `CAST` int64), thử trên iPhone 11 Pro Max mô hình chạy CPU, khoảng 0,5 giây mỗi khung; cần xuất lại từ `best.pt` để dùng GPU.
 - **Tiền xử lý:** AI chỉ nhận ô vuông giữa khung hình, cạnh bằng 70% cạnh ngắn (`AiConfig.cropFraction`), khớp khung xanh trên màn quét.
   - **iOS:** bản vá `mobile_scanner` cắt ô này về RGB 640×640 bằng CoreGraphics và gửi qua khóa `aiInput`. Toạ độ góc mã QR và ô cắt cùng nằm trên một ảnh gốc, nên phép quy đổi kích thước không phụ thuộc chiều xoay máy.
   - **Nền tảng khác:** giải mã JPEG bằng `dart:ui` rồi cắt ô giữa.
-- **Bản vá `mobile_scanner` (iOS/macOS):** vẫn gửi frame khi không có mã (khoảng 2 frame/giây) và gửi kèm `aiInput`. Chi tiết xem `third_party/mobile_scanner/PATCH_NOTES.md`.
-  > ⚠️ Android **chưa vá**, nên trên Android AI chỉ chạy khi camera thấy mã. Luồng đo vẫn hoạt động vì luôn quét thẻ QR, nhưng toạ độ góc mã trên Android chưa được kiểm tra.
+- **Bản vá `mobile_scanner` (iOS/macOS và Android):** vẫn gửi frame khi không có mã (khoảng 2 frame/giây) để AI chạy được khi chưa thấy thẻ QR. iOS/macOS gửi kèm `aiInput` (ảnh 640×640 đã cắt); Android gửi ảnh JPEG, Dart tự giải mã và cắt. Chi tiết xem `third_party/mobile_scanner/PATCH_NOTES.md`.
+  > Toạ độ góc mã QR trên Android (dùng để quy đổi kích thước) chưa được kiểm tra trên máy thật.
 - **Hạn chế đã biết:**
   - Mask ở độ phân giải 160×160 (mỗi điểm ≈ 0,6% cạnh ô ảnh), nên vết nứt mảnh có thể bị đo dày hoặc đứt đoạn.
   - Kết quả chỉ đúng khi thẻ QR và vùng hư hỏng nằm trên cùng mặt phẳng và chụp gần thẳng góc.
@@ -247,11 +247,13 @@ flutter run -d chrome       # bản web (trung tâm quản lý)
 
 - **iOS:**
   - Impeller đã được tắt trong `Info.plist` (`FLTEnableImpeller = false`) để tránh màn hình camera bị đen. Khi chạy CLI có thể thêm `--no-enable-impeller`.
-  - Quyền camera đã khai báo qua `NSCameraUsageDescription`.
+  - Đã khai báo quyền camera (`NSCameraUsageDescription`) và thư viện ảnh minh chứng (`NSPhotoLibraryUsageDescription`).
 - **Android:**
-  - Đã khai báo quyền `CAMERA`.
-  - Build APK release dùng `compileSdk 37` và đã chỉnh JVM target cho `tflite_flutter`.
-  - `mobile_scanner` chưa vá trên Android (xem phần Pipeline Edge AI).
+  - Đã khai báo quyền `CAMERA` và `INTERNET` cho cả bản debug và release.
+  - App dùng `compileSdk = 37`; cần cài Android SDK Platform 37. Build APK release bằng `flutter build apk --release`.
+  - Kotlin của `tflite_flutter` dùng JVM target 11 để khớp Java của plugin, không phụ thuộc JDK trên máy.
+  - Tắt Kotlin incremental compilation để tránh lỗi cache khi project và Pub cache nằm ở hai ổ đĩa Windows khác nhau.
+  - Các lỗi từng gặp ở Sprint 6 được lưu trong `docs/kiem-thu/sprint6-card19.md`.
 - **Web:** không có camera, AI hay lưu ngoại tuyến (xem phần Bản web ở trên).
 
 ## Kiểm thử
