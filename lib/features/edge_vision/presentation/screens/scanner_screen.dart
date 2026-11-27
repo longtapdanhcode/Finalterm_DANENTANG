@@ -99,7 +99,13 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
     _navigateToAuditForm(
       code,
       guess?.label,
-      measurement: result == null ? null : uiState.measurement,
+      // Không có thẻ QR (hoặc chưa đo xong): vẫn mang theo loại hư hỏng AI
+      // vừa thấy, số đo để kiểm tra viên nhập.
+      measurement:
+          (result == null ? null : uiState.measurement) ??
+          ref
+              .read(scannerControllerProvider.notifier)
+              .measurementWithoutMarker(),
     );
   }
 
@@ -335,7 +341,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
         ],
       ),
       bottomAction: MobilePrimaryButton(
-        label: 'Dùng tài sản này',
+        label: 'Lập phiếu đánh giá',
         onPressed: hasResult || guess != null
             ? () => _confirmResult(uiState)
             : null,
@@ -509,7 +515,7 @@ class _CameraBox extends ConsumerWidget {
           ScannerStatus.permissionDenied => _CameraMessage(
             icon: Icons.no_photography_outlined,
             title: 'Cần quyền truy cập Camera',
-            message: uiState.errorMessage ?? 'Vui lòng cấp quyền camera để tiến hành quét mã kiểm kê hiện trường.',
+            message: uiState.errorMessage ?? 'Vui lòng cấp quyền camera để tiến hành quét mã khảo sát hiện trường.',
             actionLabel: 'Cấp quyền Camera',
             onAction: notifier.requestPermission,
           ),
@@ -631,7 +637,9 @@ class _CameraBox extends ConsumerWidget {
                               children: [
                                 Expanded(
                                   child: Text(
-                                    aiMode ? 'Đưa mã hoặc thiết bị vào khung' : 'Căn chỉnh mã QR / mã vạch trong khung',
+                                    aiMode
+                                        ? 'Đưa thẻ QR và vùng hư hỏng vào khung'
+                                        : 'Căn chỉnh mã QR / mã vạch trong khung',
                                     style: const TextStyle(
                                       color: Color(0xFFD5E6E6),
                                       fontSize: 12,
@@ -864,7 +872,7 @@ class _ResultPanel extends StatelessWidget {
         children: [
           const CardHeader(
             title: 'Kết quả nhận diện',
-            subtitle: 'Kết quả gợi ý cần được kiểm kê viên xác nhận',
+            subtitle: 'Kết quả gợi ý cần được kiểm tra viên xác nhận',
           ),
           const Gap(14),
           if (!hasAny) ...[
@@ -874,12 +882,12 @@ class _ResultPanel extends StatelessWidget {
             ),
             const Gap(12),
             const Text(
-              'Chưa phát hiện thiết bị',
+              'Chưa phát hiện hư hỏng',
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
             ),
             const Gap(8),
             const Text(
-              'Đưa mã QR, mã vạch hoặc thiết bị vào khung camera.',
+              'Đưa thẻ QR và vùng hư hỏng vào khung camera.',
               style: TextStyle(fontSize: 13, color: FlColors.muted),
             ),
           ] else ...[
@@ -988,7 +996,7 @@ class _MobileResultCard extends StatelessWidget {
         guess?.label ??
         (result != null
             ? 'Mã ${_typeLabel(result.type)}'
-            : 'Chưa phát hiện thiết bị');
+            : 'Chưa phát hiện hư hỏng');
 
     return FlCard(
       padding: const EdgeInsets.all(16),
@@ -1014,7 +1022,7 @@ class _MobileResultCard extends StatelessWidget {
           Text(
             result != null
                 ? 'Mã ${result.displayValue}'
-                : 'Đưa mã hoặc thiết bị vào khung camera',
+                : 'Đưa thẻ QR và vùng hư hỏng vào khung camera',
             style: const TextStyle(fontSize: 13, color: FlColors.muted),
           ),
           const Gap(14),
@@ -1022,7 +1030,7 @@ class _MobileResultCard extends StatelessWidget {
           const Gap(14),
           Text(
             result != null || guess != null
-                ? 'Sẵn sàng ghi vào phiếu kiểm kê'
+                ? 'Sẵn sàng ghi vào phiếu đánh giá'
                 : 'Đang chờ kết quả',
             style: const TextStyle(
               fontSize: 13,
@@ -1065,5 +1073,5 @@ String _cameraErrorText(MobileScannerException error) {
 String _typeLabel(ScanCodeType type) => switch (type) {
   ScanCodeType.qrCode => 'QR',
   ScanCodeType.barCode => 'vạch',
-  ScanCodeType.unknown => 'thiết bị',
+  ScanCodeType.unknown => 'mã',
 };

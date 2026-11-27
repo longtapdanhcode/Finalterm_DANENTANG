@@ -16,6 +16,7 @@ import 'package:field_inventory_edge_ai/features/damage_assessment/domain/entiti
 import 'package:field_inventory_edge_ai/features/damage_assessment/domain/entities/surface_assessment.dart';
 import 'package:field_inventory_edge_ai/features/damage_assessment/presentation/surface_assessment_draft.dart';
 import 'package:field_inventory_edge_ai/features/damage_assessment/presentation/surface_assessment_section.dart';
+import 'package:field_inventory_edge_ai/features/edge_vision/data/repositories/damage_segmentation.dart';
 
 import '../../data/evidence_photo_store.dart';
 import '../../data/models/audit_record_model.dart';
@@ -91,16 +92,16 @@ class _AuditFormScreenState extends ConsumerState<AuditFormScreen> {
     _photoStore = ref.read(evidencePhotoStoreProvider);
     _createdAt = DateTime.now();
     _scanCodeController = TextEditingController(text: widget.initialScanCode);
-    _aiLabelController = TextEditingController(
-      text: widget.initialAiLabel ?? '',
-    );
-    _nameController = TextEditingController(text: widget.initialAiLabel ?? '');
+    // Nhãn AI là loại hư hỏng, không phải tên hay loại bề mặt: hai ô này lấy
+    // từ danh mục (hoặc chất liệu đang chọn) ở _fillFromCatalog.
+    _aiLabelController = TextEditingController();
+    _nameController = TextEditingController();
     final measurement = widget.initialMeasurement;
     if (measurement != null) _assessment.loadMeasurement(measurement);
     // Phiếu đánh giá bề mặt không dùng số lượng: ẩn/hiện ô số lượng theo đó.
     _assessmentUsed = _assessment.isUsed;
     _assessment.addListener(_onAssessmentUsageChanged);
-    _suggestSurfaceAreaFromCatalog(widget.initialScanCode);
+    _fillFromCatalog(widget.initialScanCode);
     if (widget.draftId != null) {
       // Phải lắng nghe (không dùng ref.read(...).future): Riverpod 3 tạm dừng
       // provider không có người nghe nên danh sách phiếu có thể không về.
@@ -112,14 +113,41 @@ class _AuditFormScreenState extends ConsumerState<AuditFormScreen> {
     }
   }
 
-  /// Lấy diện tích bề mặt đã khai trong danh mục cho mã vừa quét.
-  Future<void> _suggestSurfaceAreaFromCatalog(String code) async {
-    if (code.trim().isEmpty) return;
+  /// Điền thông tin bề mặt từ danh mục cho mã vừa quét (tên, tòa nhà, phòng,
+  /// loại, diện tích, chất liệu). Ô người dùng đã gõ thì giữ nguyên. Không có
+  /// trong danh mục thì loại bề mặt lấy theo chất liệu đang chọn.
+  Future<void> _fillFromCatalog(String code) async {
+    void fill(TextEditingController c, String? value) {
+      if (c.text.trim().isEmpty && (value?.trim().isNotEmpty ?? false)) {
+        c.text = value!.trim();
+      }
+    }
+
+    void fallbackCategory() {
+      if (mounted) {
+        setState(() => fill(_aiLabelController, _assessment.material.label));
+      }
+    }
+
+    if (code.trim().isEmpty || widget.draftId != null) {
+      if (widget.draftId == null) fallbackCategory();
+      return;
+    }
     try {
       final asset = await ref
           .read(assetCatalogRepositoryProvider)
           .findByCode(code.trim());
-      if (!mounted || asset == null) return;
+      if (!mounted) return;
+      if (asset == null) {
+        fallbackCategory();
+        return;
+      }
+      setState(() {
+        fill(_nameController, asset.name);
+        fill(_areaController, asset.area);
+        fill(_locationController, asset.location);
+        fill(_aiLabelController, asset.category);
+      });
       _assessment.suggestSurfaceArea(asset.surfaceAreaM2);
       // Loại/chất liệu trong danh mục trùng tên chất liệu: dùng làm mặc định.
       final category = asset.category?.trim().toLowerCase();
@@ -128,9 +156,11 @@ class _AuditFormScreenState extends ConsumerState<AuditFormScreen> {
           _assessment.setMaterial(m);
         }
       }
+      fallbackCategory();
     } catch (e) {
-      // Bản web / chưa có danh mục: người kiểm kê tự nhập diện tích.
-      debugPrint('[AuditForm] Không tra được diện tích bề mặt: $e');
+      // Bản web / chưa có danh mục: kiểm tra viên tự nhập.
+      debugPrint('[AuditForm] Không tra được bề mặt trong danh mục: $e');
+      fallbackCategory();
     }
   }
 
@@ -291,7 +321,7 @@ class _AuditFormScreenState extends ConsumerState<AuditFormScreen> {
         context,
         signed == null
             ? 'Đã lưu bản nháp. Phiếu chưa ký nên chưa đồng bộ và chưa vào báo cáo.'
-            : 'Đã lưu phiếu kiểm kê trên thiết bị.',
+            : 'Đã lưu phiếu đánh giá trên thiết bị.',
         tone: FlTone.success,
       );
       context.canPop() ? context.pop() : context.go('/');
@@ -328,7 +358,7 @@ class _AuditFormScreenState extends ConsumerState<AuditFormScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           CardHeader(
-            title: 'Thông tin tài sản',
+            title: 'Thông tin bề mặt',
             subtitle:
                 'Phiếu mới • Tạo lúc ${flTime(_createdAt)}, ${flDate(_createdAt)}',
           ),
@@ -338,9 +368,9 @@ class _AuditFormScreenState extends ConsumerState<AuditFormScreen> {
             children: [
               Expanded(
                 child: _Field(
-                  label: 'Mã tài sản *',
+                  label: 'Mã bề mặt (thẻ QR) *',
                   controller: _scanCodeController,
-                  validator: (v) => _required(v, 'Vui lòng nhập mã tài sản'),
+                  validator: (v) => _required(v, 'Vui lòng nhập mã bề mặt'),
                   suffix: IconButton(
                     icon: const Icon(Icons.copy_rounded, size: 16),
                     tooltip: 'Sao chép mã',
@@ -356,19 +386,19 @@ class _AuditFormScreenState extends ConsumerState<AuditFormScreen> {
               const Gap(16),
               Expanded(
                 child: _Field(
-                  label: 'Hạng mục / loại *',
+                  label: 'Loại bề mặt *',
                   controller: _aiLabelController,
-                  hint: 'Ví dụ: Động cơ điện',
-                  validator: (v) => _required(v, 'Vui lòng nhập hạng mục'),
+                  hint: 'Ví dụ: Tường sơn',
+                  validator: (v) => _required(v, 'Vui lòng nhập loại bề mặt'),
                 ),
               ),
             ],
           ),
           const Gap(16),
           _Field(
-            label: 'Tên tài sản',
+            label: 'Tên bề mặt',
             controller: _nameController,
-            hint: 'Ví dụ: Động cơ điện Siemens 3 pha',
+            hint: 'Ví dụ: Tường trái phòng A101',
           ),
           const Gap(16),
           Row(
@@ -413,6 +443,7 @@ class _AuditFormScreenState extends ConsumerState<AuditFormScreen> {
               ],
             ],
           ),
+          _conditionWarning,
           const Gap(20),
           _Field(
             label: 'Ghi chú hiện trường',
@@ -486,7 +517,7 @@ class _AuditFormScreenState extends ConsumerState<AuditFormScreen> {
 
     return DesktopPage(
       heading: DesktopPageHeading(
-        title: 'Lập phiếu kiểm kê',
+        title: 'Phiếu đánh giá bề mặt',
         subtitle: 'Kiểm tra thông tin nhận diện và ghi nhận số lượng thực tế tại hiện trường.',
         action: FilledButton.icon(
           onPressed: isSaving ? null : () => _save(null),
@@ -548,10 +579,10 @@ class _AuditFormScreenState extends ConsumerState<AuditFormScreen> {
         ? _nameController.text
         : _aiLabelController.text.isNotEmpty
         ? _aiLabelController.text
-        : 'Tài sản chưa nhận diện';
+        : 'Bề mặt chưa xác định';
 
     return MobilePage(
-      title: 'Lập phiếu kiểm kê',
+      title: 'Phiếu đánh giá bề mặt',
       showBack: true,
       trailing: TextButton(
         onPressed: isSaving ? null : () => _save(null),
@@ -600,7 +631,7 @@ class _AuditFormScreenState extends ConsumerState<AuditFormScreen> {
                         color: FlColors.muted,
                       ),
                     ),
-                    if (widget.initialAiLabel?.isNotEmpty ?? false) ...[
+                    if (widget.initialMeasurement?.isEmpty == false) ...[
                       const Gap(6),
                       const StatusPill(label: 'Đã nhận diện AI', bold: true),
                     ],
@@ -610,30 +641,29 @@ class _AuditFormScreenState extends ConsumerState<AuditFormScreen> {
             ],
           ),
         ),
-        if (widget.initialScanCode.isEmpty ||
-            (widget.initialAiLabel?.isEmpty ?? true)) ...[
+        ...[
           const Gap(16),
           if (widget.initialScanCode.isEmpty)
             _Field(
-              label: 'Mã tài sản *',
+              label: 'Mã bề mặt (thẻ QR) *',
               controller: _scanCodeController,
               onChanged: (_) => setState(() {}),
-              validator: (v) => _required(v, 'Vui lòng nhập mã tài sản'),
+              validator: (v) => _required(v, 'Vui lòng nhập mã bề mặt'),
             ),
           if (widget.initialScanCode.isEmpty) const Gap(12),
           _Field(
-            label: 'Hạng mục / loại *',
+            label: 'Loại bề mặt *',
             controller: _aiLabelController,
-            hint: 'Ví dụ: Máy khoan',
+            hint: 'Ví dụ: Tường sơn',
             onChanged: (_) => setState(() {}),
-            validator: (v) => _required(v, 'Vui lòng nhập hạng mục'),
+            validator: (v) => _required(v, 'Vui lòng nhập loại bề mặt'),
           ),
         ],
         const Gap(16),
         _Field(
-          label: 'Tên tài sản',
+          label: 'Tên bề mặt',
           controller: _nameController,
-          hint: 'Ví dụ: Động cơ điện Siemens 3 pha',
+          hint: 'Ví dụ: Tường trái phòng A101',
           onChanged: (_) => setState(() {}),
         ),
         const Gap(16),
@@ -694,6 +724,7 @@ class _AuditFormScreenState extends ConsumerState<AuditFormScreen> {
             ],
           ],
         ),
+        _conditionWarning,
         const Gap(22),
         const _MobileTitle('Ghi chú hiện trường'),
         TextFormField(
@@ -787,6 +818,24 @@ class _AuditFormScreenState extends ConsumerState<AuditFormScreen> {
       }
     });
   }
+
+  /// Chọn tình trạng có hư hỏng nhưng phiếu chưa có vùng hư hỏng nào.
+  Widget get _conditionWarning =>
+      _condition != AuditCondition.good &&
+          _assessment.isUsed &&
+          _assessment.rows.isEmpty
+      ? const Padding(
+          padding: EdgeInsets.only(top: 10),
+          child: InfoBanner(
+            title: 'Chưa có vùng hư hỏng',
+            subtitle:
+                'Thêm vùng hư hỏng ở mục Đánh giá bề mặt để tính chi phí, '
+                'hoặc chọn lại tình trạng.',
+            icon: Icons.warning_amber_rounded,
+            tone: FlTone.warning,
+          ),
+        )
+      : const SizedBox.shrink();
 
   Widget get _photoStrip => _EvidencePhotoStrip(
     files: _photoFiles,
@@ -1103,6 +1152,50 @@ class _EvidencePhotoStrip extends StatelessWidget {
 
   static const double _tile = 84;
 
+  void _openAnalysis(BuildContext context, Uint8List photo) {
+    final analysis = analyzeDamagePhoto(photo);
+    showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Vùng hư hỏng'),
+        content: SizedBox(
+          width: 480,
+          child: FutureBuilder(
+            future: analysis,
+            builder: (context, snapshot) {
+              final result = snapshot.data;
+              return SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Image.memory(result?.image ?? photo, fit: BoxFit.contain),
+                    const Gap(12),
+                    if (snapshot.connectionState != ConnectionState.done) ...[
+                      const LinearProgressIndicator(),
+                      const Gap(8),
+                      const Text('Đang phân tích ảnh…'),
+                    ] else if (snapshot.hasError)
+                      const Text('Không phân tích được ảnh. Hãy thử lại.')
+                    else if (result == null || result.labels.isEmpty)
+                      const Text('AI chưa phát hiện vùng hư hỏng.')
+                    else
+                      Text(result.labels.join(' · ')),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Đóng'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -1130,10 +1223,18 @@ class _EvidencePhotoStrip extends StatelessWidget {
                                   color: FlColors.muted,
                                 ),
                               )
-                            : Image.memory(
-                                bytes[name]!,
-                                fit: BoxFit.cover,
-                                gaplessPlayback: true,
+                            : InkWell(
+                                onTap: enabled && supportsDamageSegmentation
+                                    ? () => _openAnalysis(context, bytes[name]!)
+                                    : null,
+                                child: Image.memory(
+                                  bytes[name]!,
+                                  fit: BoxFit.cover,
+                                  gaplessPlayback: true,
+                                  semanticLabel: supportsDamageSegmentation
+                                      ? 'Phân tích ảnh minh chứng bằng AI'
+                                      : 'Ảnh minh chứng',
+                                ),
                               ),
                       ),
                     ),
@@ -1202,6 +1303,10 @@ class _EvidencePhotoStrip extends StatelessWidget {
               ),
           ],
         ),
+        if (supportsDamageSegmentation && bytes.isNotEmpty) ...[
+          const Gap(8),
+          const Text('Chạm vào ảnh để AI khoanh vùng hư hỏng.'),
+        ],
         const Gap(8),
         Text(
           '${files.length}/$maxEvidencePhotos ảnh',

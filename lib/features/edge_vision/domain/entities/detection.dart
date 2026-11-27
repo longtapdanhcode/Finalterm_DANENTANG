@@ -13,6 +13,9 @@ class Detection {
     required this.cy,
     required this.w,
     required this.h,
+    this.maskCoefficients,
+    this.maskArea,
+    this.maskLength,
   });
 
   final int classIndex;
@@ -23,11 +26,38 @@ class Detection {
   final double w;
   final double h;
 
+  /// Hệ số mask của model phân vùng (YOLOv8-seg: 32 số), `null` với model
+  /// chỉ phát hiện khung.
+  final List<double>? maskCoefficients;
+
+  /// Diện tích mask, tính theo tỉ lệ diện tích ô ảnh vào AI (0..1).
+  final double? maskArea;
+
+  /// Chiều dài ước tính của mask (dùng cho vết nứt), theo tỉ lệ cạnh ô ảnh.
+  final double? maskLength;
+
+  bool get hasMask => maskArea != null;
+
   double get left => cx - w / 2;
   double get top => cy - h / 2;
   double get right => cx + w / 2;
   double get bottom => cy + h / 2;
   double get area => w * h;
+
+  /// Bản sao kèm số đo mask.
+  Detection withMask({required double area, required double length}) =>
+      Detection(
+        classIndex: classIndex,
+        label: label,
+        score: score,
+        cx: cx,
+        cy: cy,
+        w: w,
+        h: h,
+        maskCoefficients: maskCoefficients,
+        maskArea: area,
+        maskLength: length,
+      );
 
   /// Tỉ lệ giao trên hợp (IoU) với [other].
   double iou(Detection other) {
@@ -48,5 +78,6 @@ class Detection {
   String toString() =>
       'Detection($label ${(score * 100).toStringAsFixed(1)}% '
       'cx=${cx.toStringAsFixed(3)} cy=${cy.toStringAsFixed(3)} '
-      'w=${w.toStringAsFixed(3)} h=${h.toStringAsFixed(3)})';
+      'w=${w.toStringAsFixed(3)} h=${h.toStringAsFixed(3)}'
+      '${maskArea == null ? '' : ' mask=${maskArea!.toStringAsFixed(4)}'})';
 }

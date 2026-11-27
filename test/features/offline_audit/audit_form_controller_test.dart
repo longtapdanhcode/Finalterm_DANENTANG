@@ -232,7 +232,7 @@ void main() {
       expect(repo.records, hasLength(1));
     });
 
-    test('bản nháp (chưa ký) không cập nhật tài sản trong danh mục', () async {
+    test('bản nháp (chưa ký) không cập nhật bề mặt trong danh mục', () async {
       final catalog = _MemoryCatalog([
         AssetModel('TS-DC-0142')..name = 'Động cơ',
       ]);

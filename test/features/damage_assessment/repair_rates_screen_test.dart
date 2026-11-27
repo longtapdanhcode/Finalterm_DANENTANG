@@ -60,7 +60,7 @@ void desktop(WidgetTester tester) {
 }
 
 void main() {
-  testWidgets('Kiểm kê viên chỉ xem, không có nút sửa', (tester) async {
+  testWidgets('Kiểm tra viên chỉ xem, không có nút sửa', (tester) async {
     desktop(tester);
     final writer = _Writer();
     await tester.pumpWidget(

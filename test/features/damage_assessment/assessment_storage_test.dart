@@ -24,7 +24,7 @@ void main() {
         ],
       );
 
-  group('Phiếu kiểm kê lưu đánh giá hư hỏng', () {
+  group('Phiếu đánh giá lưu đánh giá hư hỏng', () {
     test('applyAssessment ghi JSON, tổng tiền và chỉ số', () {
       final record = AuditRecordModel(1)..applyAssessment(assessment);
       expect(record.estimatedCost, assessment.totalCost);
@@ -76,7 +76,7 @@ void main() {
     });
   });
 
-  group('Tài sản có diện tích bề mặt', () {
+  group('Bề mặt có diện tích bề mặt', () {
     test('toJson/fromJson giữ diện tích; không có thì không gửi', () {
       final a = AssetModel('P-A101-TT')
         ..name = 'Tường trái'

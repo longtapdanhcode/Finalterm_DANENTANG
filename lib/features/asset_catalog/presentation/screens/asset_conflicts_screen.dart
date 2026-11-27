@@ -49,7 +49,7 @@ class AssetConflictsScreen extends ConsumerWidget {
                       Text(
                         conflicts.isEmpty
                             ? 'Không còn dữ liệu khác phiên bản'
-                            : '${conflicts.length} tài sản khác phiên bản',
+                            : '${conflicts.length} bề mặt khác phiên bản',
                         style: const TextStyle(
                           fontSize: 12,
                           color: FlColors.muted,
@@ -72,12 +72,12 @@ class AssetConflictsScreen extends ConsumerWidget {
                     if (conflicts.isEmpty)
                       const InfoBanner(
                         icon: Icons.check_circle_rounded,
-                        title: 'Không còn tài sản nào cần đối chiếu',
+                        title: 'Không còn bề mặt nào cần đối chiếu',
                         subtitle: 'Dữ liệu trên máy và đám mây đã khớp nhau.',
                       )
                     else ...[
                       const Text(
-                        'Máy này và đám mây (thiết bị khác) cùng sửa các tài sản dưới đây. '
+                        'Máy này và đám mây (thiết bị khác) cùng sửa các bề mặt dưới đây. '
                         'Mục chỉ một bên sửa đã được gộp tự động; chọn giá trị cần giữ cho các mục còn lại.',
                         style: TextStyle(
                           fontSize: 13,
@@ -130,7 +130,7 @@ class _ConflictCardState extends ConsumerState<_ConflictCard> {
         try {
           final result = await repo.sync();
           note = result.conflicts > 0
-              ? 'Còn ${result.conflicts} tài sản cần đối chiếu.'
+              ? 'Còn ${result.conflicts} bề mặt cần đối chiếu.'
               : 'Đã cập nhật lên đám mây.';
         } catch (e) {
           debugPrint('[Conflicts] Lỗi đồng bộ sau khi đối chiếu: $e');

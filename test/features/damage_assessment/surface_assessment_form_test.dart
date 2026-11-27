@@ -67,7 +67,7 @@ void main() {
     'Danh sách phiếu: phiếu đánh giá hiện chi phí, phiếu thường hiện số lượng',
     () {
       final plain = AuditRecordModel(1)..quantity = 3;
-      expect(auditAmountLabel(plain), '3 thiết bị');
+      expect(auditAmountLabel(plain), '3 mục');
       final assessed = AuditRecordModel(2)
         ..applyAssessment(
           const DamageCalculator(_table).assess(
@@ -142,7 +142,7 @@ void main() {
     });
   });
 
-  group('Phiếu kiểm kê có đánh giá hư hỏng', () {
+  group('Phiếu đánh giá có đánh giá hư hỏng', () {
     late _Repo repo;
 
     setUp(() => repo = _Repo());

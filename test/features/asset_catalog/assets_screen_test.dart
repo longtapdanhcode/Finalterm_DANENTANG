@@ -110,8 +110,8 @@ void main() {
     expect(find.text('Máy bơm ly tâm Ebara'), findsOneWidget);
     expect(find.text('Động cơ điện Siemens'), findsOneWidget);
     expect(find.text('Cần kiểm tra 2'), findsOneWidget);
-    expect(find.text('Chưa kiểm kê 1'), findsOneWidget);
-    expect(find.text('Hiển thị 3 trong 3 tài sản'), findsOneWidget);
+    expect(find.text('Chưa đánh giá 1'), findsOneWidget);
+    expect(find.text('Hiển thị 3 trong 3 bề mặt'), findsOneWidget);
   });
 
   testWidgets('"Cần kiểm tra" tab keeps only check and damaged assets', (
@@ -140,7 +140,7 @@ void main() {
   testWidgets('Empty catalog offers to sync', (tester) async {
     await _pump(tester, const [], size: const Size(390, 844));
 
-    expect(find.text('Chưa có tài sản nào trên máy.'), findsOneWidget);
+    expect(find.text('Chưa có bề mặt nào trên máy.'), findsOneWidget);
     expect(find.text('Đồng bộ danh mục'), findsOneWidget);
   });
 
@@ -173,7 +173,7 @@ void main() {
 
       expect(catalog.syncCalls, 1);
       expect(
-        find.text('Không có phiếu nào cần đồng bộ. Danh mục: 0 tài sản.'),
+        find.text('Không có phiếu nào cần đồng bộ. Danh mục: 0 bề mặt.'),
         findsOneWidget,
       );
     },

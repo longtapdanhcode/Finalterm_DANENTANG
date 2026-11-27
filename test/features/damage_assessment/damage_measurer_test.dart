@@ -67,7 +67,7 @@ void main() {
 
     test('Diện tích: khung × π/4, quy ra m²', () {
       final m = measurer.measure(
-        detections: [det(2, 0.5, 0.5)], // thấm nước
+        detections: [det(1, 0.5, 0.5)], // thấm nước
         frameShortSidePx: 1000,
         scale: scale,
       );
@@ -90,22 +90,47 @@ void main() {
       expect(m.measurements.single.quantity, 0.70);
     });
 
-    test('Khuyết tật kim loại gộp vào gỉ sét; bàn ghế bị bỏ qua', () {
+    test('Đủ 4 loại; lớp ngoài bảng ánh xạ bị bỏ qua', () {
       final m = measurer.measure(
-        detections: [det(5, 0.2, 0.2), det(1, 0.2, 0.2), det(6, 0.3, 0.3)],
+        detections: [
+          det(0, 0.2, 0.2),
+          det(1, 0.2, 0.2),
+          det(2, 0.2, 0.2),
+          det(3, 0.2, 0.2),
+          det(7, 0.3, 0.3),
+        ],
         frameShortSidePx: 1000,
         scale: scale,
       );
       expect(m.measurements.map((e) => e.type), [
-        DamageType.rust,
+        DamageType.crack,
+        DamageType.waterMold,
+        DamageType.peelingPaint,
         DamageType.rust,
       ]);
       expect(m.ignoredDetections, 1);
     });
 
+    test('Có mask: dùng diện tích và chiều dài theo mask', () {
+      final m = measurer.measure(
+        detections: [
+          // Khung 0.5 × 0.5 nhưng mask chỉ phủ 10% ô ảnh.
+          det(1, 0.5, 0.5).withMask(area: 0.1, length: 0.3),
+          // Vết nứt: khung chéo 1.0 nhưng mask dài 0.5 cạnh ô.
+          det(0, 0.6, 0.8).withMask(area: 0.01, length: 0.5),
+        ],
+        frameShortSidePx: 1000,
+        scale: scale,
+      );
+      // 0.1 × 0.49 m² = 0.049 => 0.05
+      expect(m.measurements[0].quantity, 0.05);
+      // 0.5 × 0.7 m = 0.35
+      expect(m.measurements[1].quantity, 0.35);
+    });
+
     test('Không có thẻ QR: vẫn liệt kê hư hỏng, số đo để 0', () {
       final m = measurer.measure(
-        detections: [det(2, 0.5, 0.5)],
+        detections: [det(1, 0.5, 0.5)],
         frameShortSidePx: 1000,
       );
       expect(m.hasScale, isFalse);

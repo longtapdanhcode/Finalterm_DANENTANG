@@ -83,7 +83,7 @@ const _qr = Barcode(
 );
 
 const _water = Detection(
-  classIndex: 2, // Thấm nước (model 9 lớp)
+  classIndex: 1, // Thấm nước / ẩm mốc
   label: 'Thấm nước',
   score: 0.88,
   cx: 0.5,
@@ -93,7 +93,7 @@ const _water = Detection(
 );
 
 const _chair = Detection(
-  classIndex: 6,
+  classIndex: 6, // lớp không có trong bảng ánh xạ hư hỏng
   label: 'Ghế',
   score: 0.9,
   cx: 0.2,
@@ -150,6 +150,31 @@ void main() {
     // 0,5 × 0,4 × π/4 × 0,35² ≈ 0,0192 m² => 0,02
     expect(d.quantity, 0.02);
     expect(m.capturedAreaM2, closeTo(0.12, 1e-9));
+  });
+
+  test(
+    'Không có thẻ QR: mang loại hư hỏng AI thấy sang phiếu, số đo 0',
+    () async {
+      vision.next = const VisionAnalysis(
+        labels: ['Thấm nước / ẩm mốc (88.0%)'],
+        detections: [_water, _chair],
+      );
+      final notifier = c.read(scannerControllerProvider.notifier);
+      await notifier.processCameraFrame(capture(barcodes: const []));
+
+      final m = notifier.measurementWithoutMarker()!;
+      expect(m.hasScale, isFalse);
+      expect(m.ignoredDetections, 1);
+      expect(m.measurements.single.type, DamageType.waterMold);
+      expect(m.measurements.single.quantity, 0);
+    },
+  );
+
+  test('AI chưa thấy hư hỏng: không có gì để mang sang phiếu', () async {
+    vision.next = const VisionAnalysis();
+    final notifier = c.read(scannerControllerProvider.notifier);
+    await notifier.processCameraFrame(capture(barcodes: const []));
+    expect(notifier.measurementWithoutMarker(), isNull);
   });
 
   test(

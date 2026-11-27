@@ -46,7 +46,7 @@ class LocationsScreen extends ConsumerWidget {
                 const Gap(2),
                 Text(
                   '${workspace.shift} • ${areas.length} tòa nhà • '
-                  '${stats.totalAssets} tài sản • '
+                  '${stats.totalAssets} bề mặt • '
                   'kỳ ${AuditStats.labelOf(stats.periodStart)}',
                   style: const TextStyle(fontSize: 12, color: FlColors.muted),
                 ),
@@ -136,7 +136,7 @@ class _AreaCard extends StatelessWidget {
           FlProgressBar(value: p.progress),
           const Gap(8),
           Text(
-            'Đã kiểm ${p.done}/${p.planned} tài sản',
+            'Đã đánh giá ${p.done}/${p.planned} bề mặt',
             style: const TextStyle(fontSize: 12, color: FlColors.muted),
           ),
           const Gap(12),
@@ -170,7 +170,7 @@ class _AreaCard extends StatelessWidget {
                     child: Text(pos.name, style: const TextStyle(fontSize: 13)),
                   ),
                   Text(
-                    '${pos.assets} tài sản',
+                    '${pos.assets} bề mặt',
                     style: const TextStyle(fontSize: 12, color: FlColors.muted),
                   ),
                 ],
@@ -188,7 +188,7 @@ class _AreaCard extends StatelessWidget {
           const Align(
             alignment: Alignment.centerRight,
             child: Text(
-              'Xem tài sản  ›',
+              'Xem bề mặt  ›',
               style: TextStyle(
                 fontSize: 12,
                 color: FlColors.primary,

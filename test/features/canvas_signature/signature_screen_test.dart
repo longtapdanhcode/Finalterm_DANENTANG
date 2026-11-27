@@ -56,12 +56,12 @@ void main() {
       await tester.pumpWidget(buildTestWidget());
       await tester.pumpAndSettle();
 
-      expect(find.text('Ký xác nhận kiểm kê'), findsOneWidget);
+      expect(find.text('Ký xác nhận phiếu'), findsOneWidget);
       expect(find.text('Chạm và kéo để ký'), findsOneWidget);
       expect(find.text('TS-DC-0142'), findsOneWidget);
       expect(find.byType(Signature), findsOneWidget);
       expect(find.text('Xóa và ký lại'), findsOneWidget);
-      expect(find.text('Hoàn tất & lưu phiếu kiểm kê'), findsOneWidget);
+      expect(find.text('Hoàn tất & lưu phiếu'), findsOneWidget);
     });
 
     testWidgets('Shows warning snackbar when confirming with empty canvas', (
@@ -72,7 +72,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Tap confirm on empty canvas
-      final confirm = find.text('Hoàn tất & lưu phiếu kiểm kê');
+      final confirm = find.text('Hoàn tất & lưu phiếu');
       await tester.ensureVisible(confirm);
       await tester.tap(confirm);
       await tester.pumpAndSettle();
@@ -135,7 +135,7 @@ void main() {
       );
       await tester.pump();
 
-      final confirm = find.text('Hoàn tất & lưu phiếu kiểm kê');
+      final confirm = find.text('Hoàn tất & lưu phiếu');
       await tester.ensureVisible(confirm);
       // Xuất PNG cần event loop thật nên chạy trong runAsync.
       await tester.runAsync(() async {
@@ -147,7 +147,7 @@ void main() {
       expect(result, isNotNull);
       expect(result!.bytes, isNotEmpty);
       expect(result!.signerName, 'Nguyễn Minh Anh');
-      expect(result!.signerRole, 'Kiểm kê viên');
+      expect(result!.signerRole, 'Kiểm tra viên');
     });
   });
 }

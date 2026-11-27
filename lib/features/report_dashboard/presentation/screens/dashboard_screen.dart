@@ -107,13 +107,13 @@ class DesktopDashboard extends ConsumerWidget {
     return DesktopPage(
       heading: DesktopPageHeading(
         title: 'Tổng quan hiện trường',
-        subtitle: 'Theo dõi tài sản, tiến độ kiểm kê và các vấn đề cần xử lý hôm nay.',
+        subtitle: 'Theo dõi bề mặt, tiến độ khảo sát và các vấn đề cần xử lý hôm nay.',
         // Bản web không quét: lập phiếu bằng app điện thoại (Card 28).
         action: canScan
             ? FilledButton.icon(
                 onPressed: () => context.go('/scanner'),
                 icon: const Icon(Icons.add_rounded, size: 18),
-                label: const Text('Tạo phiếu kiểm kê'),
+                label: const Text('Tạo phiếu đánh giá'),
               )
             : FilledButton.icon(
                 onPressed: () => context.go('/reports'),
@@ -126,7 +126,7 @@ class DesktopDashboard extends ConsumerWidget {
           builder: (context, constraints) {
             final cards = [
               _StatCard(
-                label: 'Tổng tài sản',
+                label: 'Tổng bề mặt',
                 value: stats.totalAssets,
                 caption: '${stats.areas.length} tòa nhà trong danh mục',
                 icon: Icons.inventory_2_outlined,
@@ -134,7 +134,7 @@ class DesktopDashboard extends ConsumerWidget {
                 onTap: () => context.go('/assets'),
               ),
               _StatCard(
-                label: 'Đã kiểm kê',
+                label: 'Đã đánh giá',
                 value: stats.auditedAssets,
                 caption:
                     '$percent% danh mục ${stats.periodLabel.toLowerCase()}',
@@ -145,8 +145,8 @@ class DesktopDashboard extends ConsumerWidget {
                 label: 'Cần kiểm tra',
                 value: stats.needsCheck,
                 caption: stats.damaged == 0
-                    ? 'Không có tài sản hư hỏng'
-                    : '${stats.damaged} tài sản hư hỏng',
+                    ? 'Không có bề mặt hư hỏng'
+                    : '${stats.damaged} bề mặt hư hỏng',
                 icon: Icons.center_focus_strong_outlined,
                 tone: FlTone.warning,
               ),
@@ -274,7 +274,7 @@ class _AreaProgressCard extends StatelessWidget {
         children: [
           CardHeader(
             title: 'Tiến độ kiểm tra theo tòa nhà',
-            subtitle: 'Kỳ kiểm kê ${stats.periodLabel.toLowerCase()}',
+            subtitle: 'Kỳ khảo sát ${stats.periodLabel.toLowerCase()}',
             trailing: stats.totalAssets > 0 && stats.notAudited == 0
                 ? const StatusPill(label: 'Hoàn tất')
                 : const StatusPill(label: 'Đang thực hiện', tone: FlTone.info),
@@ -284,7 +284,7 @@ class _AreaProgressCard extends StatelessWidget {
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 12),
               child: Text(
-                'Chưa có tài sản trong danh mục. Đồng bộ danh mục ở màn Tài sản.',
+                'Chưa có bề mặt trong danh mục. Đồng bộ danh mục ở màn Bề mặt.',
                 style: TextStyle(fontSize: 13, color: FlColors.muted),
               ),
             ),
@@ -398,7 +398,7 @@ class _EdgeAiCard extends StatelessWidget {
               ),
               Gap(18),
               Text(
-                'Kiểm kê nhanh với Edge AI',
+                'Đánh giá nhanh với Edge AI',
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
               ),
               Gap(10),
@@ -439,7 +439,7 @@ class _RecentAuditsCard extends ConsumerWidget {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
             child: CardHeader(
-              title: 'Phiếu kiểm kê gần đây',
+              title: 'Phiếu đánh giá gần đây',
               trailing: TextButton(
                 onPressed: () => context.go('/reports'),
                 child: const Text('Xem tất cả →'),
@@ -453,7 +453,7 @@ class _RecentAuditsCard extends ConsumerWidget {
             child: const Row(
               children: [
                 Expanded(flex: 3, child: SectionLabel('Mã phiếu')),
-                Expanded(flex: 4, child: SectionLabel('Tài sản')),
+                Expanded(flex: 4, child: SectionLabel('Bề mặt')),
                 Expanded(flex: 2, child: SectionLabel('Số lượng')),
                 Expanded(flex: 3, child: SectionLabel('Trạng thái')),
               ],
@@ -463,7 +463,7 @@ class _RecentAuditsCard extends ConsumerWidget {
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 24, vertical: 28),
               child: Text(
-                'Chưa có phiếu kiểm kê nào trên máy. Quét thẻ QR trên bề mặt để tạo phiếu đầu tiên.',
+                'Chưa có phiếu đánh giá nào trên máy. Quét thẻ QR trên bề mặt để tạo phiếu đầu tiên.',
                 style: TextStyle(fontSize: 13, color: FlColors.muted),
               ),
             ),
@@ -577,7 +577,7 @@ class _AttentionCard extends StatelessWidget {
           _AttentionRow(
             count: stats.discrepancies,
             title: 'Sai lệch số lượng',
-            subtitle: 'Đối chiếu với danh mục tài sản',
+            subtitle: 'Đối chiếu với danh mục bề mặt',
             tone: FlTone.warning,
             onTap: () => context.go('/reports'),
           ),
@@ -753,7 +753,7 @@ class MobileDashboard extends ConsumerWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Text(
-                            'Sẵn sàng kiểm kê',
+                            'Sẵn sàng khảo sát',
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
@@ -781,12 +781,12 @@ class MobileDashboard extends ConsumerWidget {
                 spacing: 8,
                 children: [
                   _MobileStat(
-                    label: 'Tài sản',
+                    label: 'Bề mặt',
                     value: stats.totalAssets,
                     tone: FlTone.success,
                   ),
                   _MobileStat(
-                    label: 'Đã kiểm',
+                    label: 'Đã đánh giá',
                     value: stats.auditedAssets,
                     tone: FlTone.success,
                   ),

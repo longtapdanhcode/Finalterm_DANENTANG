@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:field_inventory_edge_ai/core/theme/fieldline_theme.dart';
 import 'package:field_inventory_edge_ai/core/utils/responsive_layout.dart';
 import 'package:field_inventory_edge_ai/core/widgets/fieldline_widgets.dart';
+import 'package:field_inventory_edge_ai/features/damage_assessment/presentation/audit_labels.dart';
 import 'package:field_inventory_edge_ai/features/offline_audit/data/models/audit_record_model.dart';
 import 'package:field_inventory_edge_ai/features/report_dashboard/presentation/screens/dashboard_screen.dart'
     show auditCode;
@@ -37,8 +38,8 @@ class _SyncScreenState extends ConsumerState<SyncScreen> {
   void _openConflicts() => context.push('/sync/conflicts');
 
   String get _conflictLabel => _conflicts == 0
-      ? 'Không có tài sản cần đối chiếu'
-      : '$_conflicts tài sản cần đối chiếu';
+      ? 'Không có bề mặt cần đối chiếu'
+      : '$_conflicts bề mặt cần đối chiếu';
 
   SyncSettings get _settings =>
       ref.watch(syncSettingsProvider).value ?? const SyncSettings();
@@ -127,7 +128,7 @@ class _SyncScreenState extends ConsumerState<SyncScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
             child: const Row(
               children: [
-                Expanded(flex: 3, child: SectionLabel('Phiếu kiểm kê')),
+                Expanded(flex: 3, child: SectionLabel('Phiếu đánh giá')),
                 Expanded(flex: 4, child: SectionLabel('Dữ liệu')),
                 Expanded(flex: 3, child: SectionLabel('Trạng thái')),
                 Expanded(flex: 2, child: SectionLabel('Thao tác')),
@@ -346,7 +347,7 @@ class _SyncScreenState extends ConsumerState<SyncScreen> {
             _SyncStat(
               label: 'Đã đồng bộ',
               value: synced.length,
-              caption: 'Phiếu kiểm kê trên đám mây',
+              caption: 'Phiếu đánh giá trên đám mây',
               color: FlColors.primary,
             ),
             _SyncStat(
@@ -358,7 +359,7 @@ class _SyncScreenState extends ConsumerState<SyncScreen> {
             _SyncStat(
               label: 'Cần đối chiếu',
               value: _conflicts,
-              caption: 'Tài sản khác phiên bản',
+              caption: 'Bề mặt khác phiên bản',
               color: FlColors.warning,
             ),
             _SyncStat(
@@ -653,7 +654,7 @@ class _SyncScreenState extends ConsumerState<SyncScreen> {
 
   String _dataSummary(AuditRecordModel r) {
     final signed = r.signatureBytes?.isNotEmpty ?? false;
-    return '${r.quantity} tài sản${signed ? ' • Có chữ ký' : ''}';
+    return '${auditAmountLabel(r)}${signed ? ' • Có chữ ký' : ''}';
   }
 }
 

@@ -51,7 +51,7 @@ class PdfReportGenerator {
               mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
               children: [
                 pw.Text(
-                  'DANH SÁCH TÀI SẢN',
+                  'DANH SÁCH BỀ MẶT',
                   style: pw.TextStyle(
                     font: boldFont,
                     fontSize: 18,
@@ -66,7 +66,7 @@ class PdfReportGenerator {
             ),
             pw.SizedBox(height: 6),
             pw.Text(
-              '${assets.length} tài sản • Tổng số lượng: $totalQuantity',
+              '${assets.length} bề mặt • Tổng số lượng: $totalQuantity',
               style: pw.TextStyle(fontSize: 10, color: PdfColors.grey700),
             ),
             pw.SizedBox(height: 10),
@@ -87,7 +87,7 @@ class PdfReportGenerator {
               padding: const pw.EdgeInsets.symmetric(vertical: 40),
               child: pw.Center(
                 child: pw.Text(
-                  'Không có tài sản nào trong danh sách.',
+                  'Không có bề mặt nào trong danh sách.',
                   style: pw.TextStyle(fontSize: 12, color: PdfColors.grey600),
                 ),
               ),
@@ -96,12 +96,12 @@ class PdfReportGenerator {
             pw.TableHelper.fromTextArray(
               headers: const [
                 'STT',
-                'Mã tài sản',
-                'Tên tài sản',
+                'Mã bề mặt',
+                'Tên bề mặt',
                 'Khu vực',
                 'SL',
                 'Tình trạng',
-                'Kiểm kê gần nhất',
+                'Đánh giá gần nhất',
               ],
               data: [
                 for (final (i, a) in assets.indexed)
@@ -113,7 +113,7 @@ class PdfReportGenerator {
                     '${a.quantity}',
                     AssetStatus.fromCode(a.status).label,
                     a.lastAuditAt == null
-                        ? 'Chưa kiểm kê'
+                        ? 'Chưa đánh giá'
                         : date.format(a.lastAuditAt!),
                   ],
               ],
@@ -327,11 +327,8 @@ class PdfReportGenerator {
                     child: pw.Column(
                       crossAxisAlignment: pw.CrossAxisAlignment.start,
                       children: [
-                        field('Tên tài sản', r.assetName ?? 'Chưa nhập'),
-                        field(
-                          'Hạng mục (nhận diện AI)',
-                          r.aiDetectedLabel ?? 'Không có',
-                        ),
+                        field('Tên bề mặt', r.assetName ?? 'Chưa nhập'),
+                        field('Loại bề mặt', r.aiDetectedLabel ?? 'Không có'),
                         field('Khu vực • Vị trí', place.isEmpty ? '-' : place),
                         if (r.surfaceAssessment case final a?) ...[
                           field(
@@ -361,7 +358,7 @@ class PdfReportGenerator {
                           children: [
                             pw.Expanded(
                               child: field(
-                                'Số lượng kiểm kê',
+                                'Số lượng',
                                 assessed(r) ? '-' : '${r.quantity}',
                               ),
                             ),
@@ -508,7 +505,7 @@ class PdfReportGenerator {
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
                     pw.Text(
-                      'BÁO CÁO KIỂM KÊ HIỆN TRƯỜNG',
+                      'BÁO CÁO KHẢO SÁT HƯ HỎNG CƠ SỞ VẬT CHẤT',
                       style: pw.TextStyle(
                         font: boldFont,
                         fontSize: 18,
@@ -518,8 +515,8 @@ class PdfReportGenerator {
                     pw.SizedBox(height: 4),
                     pw.Text(
                       periodLabel == null
-                          ? 'Hệ thống Field Inventory Edge AI (Offline-First)'
-                          : 'Kỳ báo cáo: $periodLabel  •  Field Inventory Edge AI',
+                          ? 'Hệ thống Fieldline (Offline-First)'
+                          : 'Kỳ báo cáo: $periodLabel  •  Fieldline',
                       style: pw.TextStyle(
                         fontSize: 10,
                         color: PdfColors.grey700,
@@ -544,7 +541,7 @@ class PdfReportGenerator {
             mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
             children: [
               pw.Text(
-                'Báo cáo tự động từ Field Inventory Edge AI App',
+                'Báo cáo tự động từ ứng dụng Fieldline',
                 style: pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
               ),
               pw.Text(
@@ -561,7 +558,7 @@ class PdfReportGenerator {
                 child: pw.Padding(
                   padding: const pw.EdgeInsets.symmetric(vertical: 40),
                   child: pw.Text(
-                    'Chưa có dữ liệu kiểm kê nào được ghi nhận.',
+                    'Chưa có phiếu đánh giá nào được ghi nhận.',
                     style: pw.TextStyle(fontSize: 12, color: PdfColors.grey600),
                   ),
                 ),
@@ -574,7 +571,7 @@ class PdfReportGenerator {
               children: [
                 stat('Số phiếu', '${records.length}'),
                 pw.SizedBox(width: 8),
-                stat('Tài sản khác nhau', '$distinctAssets'),
+                stat('Bề mặt khác nhau', '$distinctAssets'),
                 pw.SizedBox(width: 8),
                 allAssessed
                     ? stat('Chi phí ước tính', formatVnd(cost.totalCost))
@@ -593,13 +590,13 @@ class PdfReportGenerator {
                 ),
               ],
             ),
-            sectionTitle('1. Tổng hợp các phiếu kiểm kê'),
+            sectionTitle('1. Tổng hợp các phiếu đánh giá'),
             pw.TableHelper.fromTextArray(
               headers: const [
                 'STT',
                 'Số phiếu',
-                'Mã thiết bị',
-                'Tài sản',
+                'Mã bề mặt',
+                'Bề mặt',
                 'Khu vực',
                 'Tình trạng',
                 'SL',
@@ -787,7 +784,7 @@ class PdfReportGenerator {
               s.code.isEmpty ? '-' : s.code,
               s.name,
               '${s.building} • ${s.room}',
-              s.worst?.label ?? 'Tốt',
+              s.worst?.label ?? 'Không hư hỏng',
               '${s.score.round()}',
               formatVnd(s.cost),
             ],

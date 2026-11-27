@@ -104,7 +104,7 @@ class AuditFormController extends _$AuditFormController {
       return true;
     } catch (e, stackTrace) {
       debugPrint(
-        '[AuditFormController] Lỗi khi lưu bản ghi kiểm kê: $e\n$stackTrace',
+        '[AuditFormController] Lỗi khi lưu bản ghi đánh giá: $e\n$stackTrace',
       );
       state = state.copyWith(
         status: AuditFormStatus.error,

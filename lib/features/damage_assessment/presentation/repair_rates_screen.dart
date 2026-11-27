@@ -220,41 +220,66 @@ class _TypeCard extends StatelessWidget {
                       ),
                     ),
                     const Gap(10),
+                    // Hai dòng: chất liệu + giá ở trên, phương pháp bên dưới,
+                    // để màn hẹp không bị bẻ chữ từng từ.
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            r.material?.label ?? 'Mọi chất liệu',
-                            style: const TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                          if (r.method.isNotEmpty)
-                            Text(
-                              r.method,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: FlColors.muted,
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  r.material?.label ?? 'Mọi chất liệu',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
                               ),
+                              const Gap(8),
+                              Text(
+                                '${formatVnd(r.unitPrice)}/${r.unit.symbol}',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              if (onEdit != null) ...[
+                                const Gap(4),
+                                const Icon(
+                                  Icons.edit_outlined,
+                                  size: 16,
+                                  color: FlColors.muted,
+                                ),
+                              ],
+                            ],
+                          ),
+                          if (r.method.isNotEmpty || r.isSample) ...[
+                            const Gap(4),
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    r.method,
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: FlColors.muted,
+                                    ),
+                                  ),
+                                ),
+                                if (r.isSample) ...[
+                                  const Gap(8),
+                                  const StatusPill(
+                                    label: 'Minh hoạ',
+                                    tone: FlTone.warning,
+                                  ),
+                                ],
+                              ],
                             ),
+                          ],
                         ],
                       ),
                     ),
-                    if (r.isSample) ...[
-                      const StatusPill(label: 'Minh hoạ', tone: FlTone.warning),
-                      const Gap(8),
-                    ],
-                    Text(
-                      '${formatVnd(r.unitPrice)}/${r.unit.symbol}',
-                      style: const TextStyle(fontWeight: FontWeight.w700),
-                    ),
-                    if (onEdit != null) ...[
-                      const Gap(4),
-                      const Icon(
-                        Icons.edit_outlined,
-                        size: 16,
-                        color: FlColors.muted,
-                      ),
-                    ],
                   ],
                 ),
               ),

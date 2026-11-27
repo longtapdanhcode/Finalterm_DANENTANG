@@ -239,7 +239,7 @@ void main() {
       expect(mockSyncRepo.syncCalled, isTrue);
       expect(catalogRepo.syncCalls, 1);
       expect(
-        find.text('Đã đồng bộ 1 phiếu lên đám mây. Danh mục: 3 tài sản.'),
+        find.text('Đã đồng bộ 1 phiếu lên đám mây. Danh mục: 3 bề mặt.'),
         findsOneWidget,
       );
     });

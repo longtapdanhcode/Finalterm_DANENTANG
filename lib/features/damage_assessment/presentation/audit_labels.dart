@@ -7,5 +7,5 @@ import 'damage_format.dart';
 String auditAmountLabel(AuditRecordModel r) {
   final cost = r.estimatedCost;
   if (r.damageAssessmentJson != null && cost != null) return formatVnd(cost);
-  return '${r.quantity} thiết bị';
+  return '${r.quantity} mục';
 }

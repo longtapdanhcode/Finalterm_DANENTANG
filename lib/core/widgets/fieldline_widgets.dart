@@ -413,7 +413,7 @@ class DesktopPage extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  'Fieldline • Field Inventory & Edge AI Suite',
+                  'Fieldline • Đánh giá cơ sở vật chất bằng Edge AI',
                   style: TextStyle(fontSize: 11, color: FlColors.muted),
                 ),
               ),

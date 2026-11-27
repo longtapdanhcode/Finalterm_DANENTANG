@@ -3,7 +3,7 @@ import 'package:flutter/widgets.dart';
 /// Vai trò tài khoản, khớp cột `profiles.role` trên Supabase.
 enum UserRole {
   admin('admin', 'Quản trị viên'),
-  auditor('auditor', 'Kiểm kê viên');
+  auditor('auditor', 'Kiểm tra viên');
 
   const UserRole(this.code, this.label);
 

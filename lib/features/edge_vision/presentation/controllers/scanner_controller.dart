@@ -243,7 +243,7 @@ class ScannerController extends _$ScannerController {
     } else {
       state = state.copyWith(
         status: ScannerStatus.permissionDenied,
-        errorMessage: 'Ứng dụng cần quyền Camera để quét mã tài sản & kiểm kê hiện trường.',
+        errorMessage: 'Ứng dụng cần quyền Camera để quét mã bề mặt & khảo sát hiện trường.',
       );
     }
   }
@@ -319,6 +319,22 @@ class ScannerController extends _$ScannerController {
   /// Lượt AI đang chạy (nếu có), để bước đo chờ lượt đó xong.
   Future<VisionAnalysis>? _inFlight;
 
+  /// Khung gần nhất AI thấy hư hỏng (dùng khi không quét được thẻ QR).
+  VisionAnalysis? _lastDamageAnalysis;
+
+  /// Không có thẻ QR làm thước đo: vẫn chuyển các loại hư hỏng AI vừa thấy
+  /// sang phiếu, số đo để 0 cho kiểm tra viên nhập tay. `null` khi AI không
+  /// thấy hư hỏng nào.
+  FrameMeasurement? measurementWithoutMarker() {
+    final analysis = _lastDamageAnalysis;
+    if (analysis == null || state.detectedObjects.isEmpty) return null;
+    final m = _measurer.measure(
+      detections: analysis.detections,
+      frameShortSidePx: 0,
+    );
+    return m.isEmpty ? null : m;
+  }
+
   static const _measurer = DamageMeasurer(
     cropFraction: AiConfig.cropFraction,
     damageTypeByClass: AiConfig.damageTypeByClass,
@@ -381,6 +397,7 @@ class ScannerController extends _$ScannerController {
       );
       if (objects.isNotEmpty) {
         _emptyFrames = 0;
+        if (analysis.detections.isNotEmpty) _lastDamageAnalysis = analysis;
         state = state.copyWith(detectedObjects: objects, ai: ai);
       } else if (state.detectedObjects.isNotEmpty &&
           ++_emptyFrames >= _clearAfterEmptyFrames) {
