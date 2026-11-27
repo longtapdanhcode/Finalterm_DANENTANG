@@ -7,6 +7,8 @@ import 'package:field_inventory_edge_ai/features/offline_audit/presentation/cont
 
 /// Bản web: tải lại phiếu và danh mục tài sản từ Supabase ngay.
 Future<void> refreshCloudData(BuildContext context, WidgetRef ref) async {
+  // Keep the stream active while refreshing, even on pages that do not show audits.
+  final subscription = ref.listenManual(auditRecordsProvider, (_, _) {});
   ref.invalidate(auditRecordsProvider);
   try {
     final result = await ref.read(assetCatalogRepositoryProvider).sync();
@@ -26,5 +28,7 @@ Future<void> refreshCloudData(BuildContext context, WidgetRef ref) async {
         tone: FlTone.danger,
       );
     }
+  } finally {
+    subscription.close();
   }
 }

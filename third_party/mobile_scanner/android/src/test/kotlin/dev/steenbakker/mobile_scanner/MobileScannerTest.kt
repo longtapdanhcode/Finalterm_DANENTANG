@@ -1,6 +1,7 @@
 package dev.steenbakker.mobile_scanner
 
 import android.app.Activity
+import android.graphics.Bitmap
 import android.graphics.Point
 import android.media.Image
 import androidx.camera.core.ImageInfo
@@ -15,6 +16,8 @@ import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.common.InputImage
 import io.flutter.view.TextureRegistry
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -22,6 +25,11 @@ import org.mockito.ArgumentCaptor
 import org.mockito.Mockito
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import org.robolectric.shadows.ShadowSystemClock
+import org.robolectric.util.ReflectionHelpers
+import java.time.Duration
+import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.TimeUnit
 
 /*
  * This demonstrates a simple unit test of the Kotlin portion of this plugin's implementation.
@@ -40,6 +48,7 @@ internal class MobileScannerTest {
 
     private fun createMobileScanner(
         barcodeScanner: BarcodeScanner = Mockito.mock(BarcodeScanner::class.java),
+        mobileScannerCallback: MobileScannerCallback = { _, _, _, _ -> },
         inputImageFactory: (Image, Int) -> InputImage = { _, _ ->
             Mockito.mock(InputImage::class.java)
         },
@@ -47,7 +56,7 @@ internal class MobileScannerTest {
         return MobileScanner(
             Mockito.mock(Activity::class.java),
             Mockito.mock(TextureRegistry::class.java),
-            { _: List<Map<String, Any?>>, _: ByteArray?, _: Int?, _: Int? -> },
+            mobileScannerCallback,
             { _: String -> },
             Mockito.mock(DeviceOrientationListener::class.java),
             { _: BarcodeScannerOptions? -> barcodeScanner },
@@ -216,6 +225,53 @@ internal class MobileScannerTest {
         successListener.value.onSuccess(emptyList())
 
         Mockito.verify(imageProxy, Mockito.times(1)).close()
+    }
+
+    @Test
+    fun captureOutput_returnsImagesWithoutBarcodesAtMostTwicePerSecond() {
+        val barcodeScanner = Mockito.mock(BarcodeScanner::class.java)
+        val inputImage = Mockito.mock(InputImage::class.java)
+        val images = LinkedBlockingQueue<ByteArray>()
+        val mobileScanner = createMobileScanner(
+            barcodeScanner,
+            mobileScannerCallback = { _, image, _, _ ->
+                if (image != null) images.offer(image)
+            },
+        ) { _, _ -> inputImage }
+        ReflectionHelpers.setField(mobileScanner, "returnImage", true)
+
+        fun deliverEmptyFrame(): ImageProxy {
+            @Suppress("UNCHECKED_CAST")
+            val task = Mockito.mock(Task::class.java) as Task<List<Barcode>>
+            val imageProxy = createImage(4, 4)
+            Mockito.`when`(imageProxy.image).thenReturn(Mockito.mock(Image::class.java))
+            Mockito.`when`(imageProxy.toBitmap())
+                .thenReturn(Bitmap.createBitmap(4, 4, Bitmap.Config.ARGB_8888))
+            Mockito.`when`(barcodeScanner.process(inputImage)).thenReturn(task)
+            Mockito.`when`(task.addOnSuccessListener(Mockito.any())).thenReturn(task)
+            Mockito.`when`(task.addOnFailureListener(Mockito.any())).thenReturn(task)
+
+            mobileScanner.captureOutput.analyze(imageProxy)
+            @Suppress("UNCHECKED_CAST")
+            val success = ArgumentCaptor.forClass(OnSuccessListener::class.java)
+                as ArgumentCaptor<OnSuccessListener<List<Barcode>>>
+            Mockito.verify(task).addOnSuccessListener(success.capture())
+            success.value.onSuccess(emptyList())
+            return imageProxy
+        }
+
+        val first = deliverEmptyFrame()
+        assertNotNull(images.poll(5, TimeUnit.SECONDS))
+        Mockito.verify(first, Mockito.timeout(1000).times(1)).close()
+
+        val throttled = deliverEmptyFrame()
+        Mockito.verify(throttled, Mockito.times(1)).close()
+        assertNull(images.poll())
+
+        ShadowSystemClock.advanceBy(Duration.ofMillis(500))
+        val next = deliverEmptyFrame()
+        assertNotNull(images.poll(5, TimeUnit.SECONDS))
+        Mockito.verify(next, Mockito.timeout(1000).times(1)).close()
     }
 
     @Test
