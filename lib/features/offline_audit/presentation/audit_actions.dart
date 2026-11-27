@@ -15,6 +15,7 @@ import 'package:field_inventory_edge_ai/features/offline_audit/data/evidence_pho
 import 'package:field_inventory_edge_ai/features/offline_audit/data/models/audit_record_model.dart';
 import 'package:field_inventory_edge_ai/features/report_dashboard/domain/audit_stats.dart';
 import 'package:field_inventory_edge_ai/features/report_dashboard/presentation/controllers/audit_stats_provider.dart';
+import 'package:field_inventory_edge_ai/features/offline_audit/presentation/controllers/auto_sync_controller.dart';
 import 'package:field_inventory_edge_ai/features/offline_audit/presentation/controllers/sync_controller.dart';
 
 /// Kích hoạt đồng bộ dữ liệu ngoại tuyến lên Supabase Cloud.
@@ -39,6 +40,16 @@ Future<void> triggerSync(BuildContext context, WidgetRef ref) async {
 
   try {
     final count = await ref.read(syncControllerProvider.notifier).syncAll();
+    // Gửi tay thành công: lỗi của lần tự đồng bộ trước không còn đúng.
+    final previous = ref.read(autoSyncStatusProvider);
+    ref
+        .read(autoSyncStatusProvider.notifier)
+        .set(
+          AutoSyncStatus(
+            lastSyncedAt: count > 0 ? DateTime.now() : previous.lastSyncedAt,
+            lastCount: count > 0 ? count : previous.lastCount,
+          ),
+        );
     final audits = count == 0
         ? 'Không có phiếu nào cần đồng bộ.'
         : 'Đã đồng bộ $count phiếu lên đám mây.';
@@ -48,15 +59,15 @@ Future<void> triggerSync(BuildContext context, WidgetRef ref) async {
     var catalogOk = true;
     try {
       final result = await ref.read(assetCatalogRepositoryProvider).sync();
-      catalog = ' Danh mục: ${result.pulled} tài sản.';
+      catalog = ' Danh mục: ${result.pulled} bề mặt.';
       if (result.conflicts > 0) {
         catalogOk = false;
-        catalog += ' ${result.conflicts} tài sản khác phiên bản cần đối chiếu.';
+        catalog += ' ${result.conflicts} bề mặt khác phiên bản cần đối chiếu.';
       }
     } catch (e) {
       debugPrint('[Sync] Lỗi đồng bộ danh mục tài sản: $e');
       catalogOk = false;
-      catalog = ' Chưa tải được danh mục tài sản, vui lòng thử lại.';
+      catalog = ' Chưa tải được danh mục bề mặt, vui lòng thử lại.';
     }
 
     if (context.mounted) {

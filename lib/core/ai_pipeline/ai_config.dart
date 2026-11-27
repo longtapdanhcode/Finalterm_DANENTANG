@@ -1,13 +1,19 @@
+import 'package:field_inventory_edge_ai/features/damage_assessment/domain/entities/damage_enums.dart';
+
 class AiConfig {
   const AiConfig._();
 
-  /// YOLOv8s từ DinoResults.zip, đầu vào 1x3x640x640 (NCHW),
-  /// đầu ra 1x(4+số lớp)x8400: cx, cy, w, h (pixel) rồi điểm từng lớp.
-  static const String modelPath = 'assets/models/object_detection.tflite';
+  /// Mô hình phân vùng YOLOv8n-seg V3, 4 lớp hư hỏng bề mặt, xuất qua ONNX
+  /// opset 13 sang TFLite float32 (onnx2tf). Đầu vào 1x3x640x640 (NCHW, RGB
+  /// 0..1). Hai đầu ra:
+  /// - 1x40x8400: cx, cy, w, h (pixel 0..640), điểm 4 lớp, 32 hệ số mask;
+  /// - 1x32x160x160: proto mask cho cả ô ảnh vào.
+  /// Màn Quét (đo theo thẻ QR) và hộp thoại "Vùng hư hỏng" trên ảnh minh
+  /// chứng dùng chung file này.
+  static const String modelPath = 'assets/models/damage_segmentation_v3.tflite';
 
   /// Nhãn hiển thị, đúng thứ tự lớp lúc huấn luyện:
-  /// crack, rust, water_damage, electric_panel, circuit_breaker, metal_defect,
-  /// chair, table, projector.
+  /// vet_nut, tham_moc, bong_son, gi_set.
   static const String labelPath = 'assets/models/labels.txt';
 
   /// Kích thước cạnh đầu vào của mô hình.
@@ -19,13 +25,34 @@ class AiConfig {
   /// diện xung quanh và bớt phải thu nhỏ ảnh.
   static const double cropFraction = 0.7;
 
-  /// Ngưỡng tin cậy cho nhóm thiết bị.
-  static const double confidenceThreshold = 0.5;
+  /// Ngưỡng tin cậy khi đo ở màn Quét, chung cho 4 lớp. Mask AP50-95 của
+  /// V3 trên tập test chỉ 9,6–29,9% nên ngưỡng để 0.4 (cao hơn mức 0.3 của
+  /// hộp thoại xem ảnh minh chứng); người kiểm kê vẫn xác nhận và sửa số đo
+  /// trên phiếu. Hiệu chỉnh lại khi có ảnh chụp tại trường.
+  static const double confidenceThreshold = 0.4;
 
-  /// Ngưỡng cao hơn cho nhóm hư hỏng (vết nứt, gỉ, thấm nước, khuyết tật kim
-  /// loại): ma trận nhầm lẫn cho thấy các lớp này báo thừa nhiều ở vùng nền.
-  static const double defectConfidenceThreshold = 0.7;
+  /// Ngưỡng riêng theo lớp (để trống: dùng [confidenceThreshold]).
+  static const Map<int, double> classConfidenceThresholds = {};
 
-  /// Chỉ số các lớp hư hỏng trong danh sách nhãn.
-  static const Set<int> defectClassIndexes = {0, 1, 2, 5};
+  /// Ngưỡng tin cậy của lớp [classIndex].
+  static double thresholdFor(int classIndex) =>
+      classConfidenceThresholds[classIndex] ?? confidenceThreshold;
+
+  /// Lớp của model ứng với loại hư hỏng bề mặt nào (thứ tự trong
+  /// docs/ai-training/HUONG_DAN_TRAIN_MODEL_BE_MAT.md).
+  static const Map<int, DamageType> damageTypeByClass = {
+    0: DamageType.crack,
+    1: DamageType.waterMold,
+    2: DamageType.peelingPaint,
+    3: DamageType.rust,
+  };
+
+  /// Ngưỡng IoU khi lọc các khung trùng nhau của cùng một lớp.
+  static const double nmsIouThreshold = 0.45;
+
+  /// Số khung tối đa giữ lại cho một khung hình.
+  static const int maxDetections = 30;
+
+  /// Cạnh thật (cm) của thẻ QR dán trên bề mặt, dùng để quy đổi pixel ra cm.
+  static const double markerSizeCm = 10;
 }

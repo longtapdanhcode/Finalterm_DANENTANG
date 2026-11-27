@@ -53,7 +53,7 @@ class MyApp extends ConsumerWidget {
     final router = ref.watch(goRouterProvider);
 
     return MaterialApp.router(
-      title: 'Fieldline — Field Inventory & Edge AI',
+      title: 'Fieldline — Đánh giá cơ sở vật chất',
       debugShowCheckedModeBanner: false,
       theme: buildFieldlineTheme(),
       routerConfig: router,

@@ -38,8 +38,8 @@ class SettingsScreen extends ConsumerWidget {
     return WorkspacePage(
       title: 'Cài đặt',
       subtitle: canScan
-          ? 'Tài khoản, nơi kiểm kê và cách app đồng bộ dữ liệu.'
-          : 'Tài khoản và nơi kiểm kê.',
+          ? 'Tài khoản, nơi khảo sát và cách app đồng bộ dữ liệu.'
+          : 'Tài khoản và nơi khảo sát.',
       children: ResponsiveLayout.isDesktop(context)
           ? [FlGrid(columns: 2, spacing: 20, children: sections)]
           : [
@@ -124,7 +124,7 @@ class _WorkspaceSectionState extends ConsumerState<_WorkspaceSection> {
   Future<void> _save() async {
     final site = _site.text.trim();
     if (site.isEmpty) {
-      showFlSnack(context, 'Nhập tên nơi kiểm kê', tone: FlTone.warning);
+      showFlSnack(context, 'Nhập tên nơi khảo sát', tone: FlTone.warning);
       return;
     }
     await ref
@@ -132,7 +132,7 @@ class _WorkspaceSectionState extends ConsumerState<_WorkspaceSection> {
         .save(WorkspaceSettings(siteName: site, shift: _shift));
     if (!mounted) return;
     setState(() => _edited = false);
-    showFlSnack(context, 'Đã lưu nơi kiểm kê', tone: FlTone.success);
+    showFlSnack(context, 'Đã lưu nơi khảo sát', tone: FlTone.success);
   }
 
   @override
@@ -145,16 +145,16 @@ class _WorkspaceSectionState extends ConsumerState<_WorkspaceSection> {
     });
 
     return _Section(
-      title: 'Nơi kiểm kê',
+      title: 'Nơi khảo sát',
       children: [
         FlTextField(
-          label: 'Tên nhà máy / kho',
+          label: 'Tên trường / cơ sở',
           controller: _site,
           textCapitalization: TextCapitalization.words,
         ),
         const Gap(14),
         const Text(
-          'Ca làm việc',
+          'Buổi kiểm tra',
           style: TextStyle(fontSize: 12, color: FlColors.muted),
         ),
         const Gap(8),
@@ -242,12 +242,8 @@ class _AiSection extends StatelessWidget {
           value: '${AiConfig.inputSize} × ${AiConfig.inputSize}',
         ),
         _Info(
-          label: 'Ngưỡng thiết bị',
+          label: 'Ngưỡng tin cậy',
           value: pct(AiConfig.confidenceThreshold),
-        ),
-        _Info(
-          label: 'Ngưỡng lỗi / hư hỏng',
-          value: pct(AiConfig.defectConfidenceThreshold),
         ),
         const Gap(8),
         const Text(
@@ -274,7 +270,7 @@ class _DataSection extends ConsumerWidget {
         title: 'Dữ liệu trên đám mây',
         children: [
           _Info(label: 'Phiếu đã ký', value: '$signed'),
-          _Info(label: 'Tài sản trong danh mục', value: '$assets'),
+          _Info(label: 'Bề mặt trong danh mục', value: '$assets'),
           const Gap(8),
           const Text(
             'Bản web đọc thẳng từ Supabase, tự tải lại mỗi phút.',
@@ -289,8 +285,8 @@ class _DataSection extends ConsumerWidget {
         _Info(label: 'Phiếu đã ký', value: '$signed'),
         _Info(label: 'Bản nháp', value: '$drafts'),
         _Info(label: 'Chờ đồng bộ', value: '$pending'),
-        _Info(label: 'Tài sản trong danh mục', value: '$assets'),
-        _Info(label: 'Tài sản cần đối chiếu', value: '$conflicts'),
+        _Info(label: 'Bề mặt trong danh mục', value: '$assets'),
+        _Info(label: 'Bề mặt cần đối chiếu', value: '$conflicts'),
         const Gap(8),
         const Text(
           'Dữ liệu vẫn giữ trên máy khi đăng xuất.',

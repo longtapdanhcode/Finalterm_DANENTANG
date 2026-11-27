@@ -164,12 +164,31 @@ class AutoSyncController extends Notifier<void> {
     _timer = Timer(delay ?? ref.read(autoSyncTimingsProvider).debounce, _run);
   }
 
+  void _clearFailures() {
+    _failures = 0;
+    final status = ref.read(autoSyncStatusProvider);
+    if (status.failures == 0) return;
+    ref
+        .read(autoSyncStatusProvider.notifier)
+        .set(
+          AutoSyncStatus(
+            lastSyncedAt: status.lastSyncedAt,
+            lastCount: status.lastCount,
+            waitingForWifi: status.waitingForWifi,
+          ),
+        );
+  }
+
   Future<void> _run() async {
     if (!ref.mounted) return;
     final settings = ref.read(syncSettingsProvider).value;
     if (settings == null || !settings.autoSync) return;
     if (ref.read(isOnlineProvider).value != true) return;
-    if (ref.read(pendingSyncCountProvider) == 0) return;
+    if (ref.read(pendingSyncCountProvider) == 0) {
+      // Hết phiếu chờ (đã gửi bằng tay chẳng hạn): bỏ báo lỗi cũ.
+      _clearFailures();
+      return;
+    }
 
     final timings = ref.read(autoSyncTimingsProvider);
     // Đang có lượt đồng bộ khác (người dùng bấm tay): hẹn lại sau.

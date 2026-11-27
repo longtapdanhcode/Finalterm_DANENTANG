@@ -36,10 +36,10 @@ class _NavItem {
 
 const _fieldItems = [
   _NavItem('Tổng quan', Icons.grid_view_outlined, '/'),
-  _NavItem('Tài sản & thiết bị', Icons.inventory_2_outlined, '/assets'),
+  _NavItem('Phòng & bề mặt', Icons.inventory_2_outlined, '/assets'),
   _NavItem('Quét mã & AI', Icons.qr_code_scanner_rounded, '/scanner'),
   _NavItem(
-    'Phiếu kiểm kê',
+    'Phiếu đánh giá',
     Icons.description_outlined,
     '/audit-form',
     matches: ['/signature'],
@@ -50,12 +50,13 @@ const _fieldItems = [
 
 const _workspaceItems = [
   _NavItem('Địa điểm', Icons.location_on_outlined, '/locations'),
+  _NavItem('Đơn giá sửa chữa', Icons.payments_outlined, '/repair-rates'),
   _NavItem('Cài đặt', Icons.settings_outlined, '/settings'),
 ];
 
 const _mobileItems = [
   _NavItem('Tổng quan', Icons.radio_button_checked_rounded, '/'),
-  _NavItem('Tài sản', Icons.crop_square_rounded, '/assets'),
+  _NavItem('Bề mặt', Icons.crop_square_rounded, '/assets'),
   _NavItem('Quét mã', Icons.search_rounded, '/scanner'),
   _NavItem(
     'Phiếu',
@@ -66,13 +67,14 @@ const _mobileItems = [
 ];
 
 const _pageTitles = {
-  '/assets': 'Tài sản & thiết bị',
+  '/assets': 'Phòng & bề mặt',
   '/scanner': 'Quét mã & nhận diện AI',
-  '/audit-form': 'Lập phiếu kiểm kê',
-  '/signature': 'Ký xác nhận kiểm kê',
-  '/reports': 'Báo cáo kiểm kê',
+  '/audit-form': 'Lập phiếu đánh giá',
+  '/signature': 'Ký xác nhận phiếu',
+  '/reports': 'Báo cáo khảo sát',
   '/sync': 'Đồng bộ dữ liệu',
   '/locations': 'Địa điểm',
+  '/repair-rates': 'Bảng đơn giá sửa chữa',
   '/settings': 'Cài đặt',
 };
 
@@ -504,7 +506,7 @@ class _TopBar extends ConsumerWidget {
                 onSubmitted: (_) => context.go('/assets'),
                 style: const TextStyle(fontSize: 13),
                 decoration: InputDecoration(
-                  hintText: 'Tìm mã tài sản, phiếu kiểm kê…',
+                  hintText: 'Tìm mã bề mặt, phiếu đánh giá…',
                   hintStyle: const TextStyle(
                     fontSize: 12,
                     color: FlColors.muted,

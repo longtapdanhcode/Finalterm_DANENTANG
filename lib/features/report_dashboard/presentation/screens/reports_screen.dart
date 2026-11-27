@@ -7,6 +7,8 @@ import 'package:field_inventory_edge_ai/features/auth/presentation/auth_provider
 import 'package:field_inventory_edge_ai/core/theme/fieldline_theme.dart';
 import 'package:field_inventory_edge_ai/core/utils/responsive_layout.dart';
 import 'package:field_inventory_edge_ai/core/widgets/fieldline_widgets.dart';
+import 'package:field_inventory_edge_ai/features/damage_assessment/presentation/audit_labels.dart';
+import 'package:field_inventory_edge_ai/features/damage_assessment/presentation/repair_cost_card.dart';
 import 'package:field_inventory_edge_ai/features/offline_audit/data/models/audit_record_model.dart';
 import 'package:field_inventory_edge_ai/features/offline_audit/presentation/audit_actions.dart';
 import 'package:field_inventory_edge_ai/features/offline_audit/presentation/controllers/audit_records_provider.dart';
@@ -56,7 +58,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
           Expanded(
             flex: 4,
             child: _Labeled(
-              label: 'Khu vực',
+              label: 'Tòa nhà',
               child: DropdownButtonFormField<String?>(
                 initialValue: _area,
                 isExpanded: true,
@@ -64,7 +66,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                 items: [
                   const DropdownMenuItem(
                     value: null,
-                    child: Text('Tất cả khu vực'),
+                    child: Text('Tất cả tòa nhà'),
                   ),
                   for (final a in stats.areas)
                     DropdownMenuItem(value: a.name, child: Text(a.name)),
@@ -101,7 +103,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                     ),
                     const Gap(12),
                     Text(
-                      'Kiểm kê tháng ${now.month}/${now.year}',
+                      'Khảo sát tháng ${now.month}/${now.year}',
                       style: const TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
@@ -112,7 +114,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                 ),
                 const Gap(10),
                 Text(
-                  '${flNumber(stats.auditedAssets)} / ${flNumber(stats.totalAssets)} tài sản đã kiểm kê',
+                  '${flNumber(stats.auditedAssets)} / ${flNumber(stats.totalAssets)} bề mặt đã đánh giá',
                   style: const TextStyle(fontSize: 12, color: FlColors.muted),
                 ),
                 const Gap(10),
@@ -160,7 +162,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
             child: _ReportPaper(
               areas: areas,
               period: period,
-              scope: _area ?? 'Toàn bộ nhà máy',
+              scope: _area ?? 'Toàn trường',
             ),
           ),
         ],
@@ -169,7 +171,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
 
     return DesktopPage(
       heading: DesktopPageHeading(
-        title: 'Báo cáo kiểm kê',
+        title: 'Báo cáo khảo sát',
         subtitle:
             'Tổng hợp kết quả, kiểm tra sai lệch và xuất biên bản có chữ ký.',
         action: FilledButton.icon(
@@ -180,6 +182,12 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
       ),
       children: [
         filterCard,
+        const Gap(24),
+        RepairCostCard(
+          summary: ref.watch(reportRepairCostProvider),
+          subtitle: 'Các bề mặt đánh giá trong $period',
+          maxRooms: 8,
+        ),
         const Gap(24),
         FlSplitRow(main: listCard, side: previewCard, flex: 4),
       ],
@@ -192,8 +200,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     final progress = stats.progress;
 
     return MobilePage(
-      title: 'Báo cáo kiểm kê',
-      subtitle: 'Tổng hợp kết quả kiểm kê hiện trường',
+      title: 'Báo cáo khảo sát',
+      subtitle: 'Tổng hợp kết quả khảo sát hư hỏng',
       bottomAction: MobilePrimaryButton(
         label: 'Xuất báo cáo PDF',
         onPressed: () => exportPdfReport(context, ref),
@@ -212,7 +220,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SectionLabel('Tiến độ đợt kiểm kê'),
+              const SectionLabel('Tiến độ đợt khảo sát'),
               const Gap(8),
               Text(
                 '${(progress * 100).round()}%',
@@ -225,7 +233,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
               ),
               const Gap(6),
               Text(
-                '${flNumber(stats.auditedAssets)} / ${flNumber(stats.totalAssets)} tài sản đã kiểm',
+                '${flNumber(stats.auditedAssets)} / ${flNumber(stats.totalAssets)} bề mặt đã đánh giá',
                 style: const TextStyle(fontSize: 13, color: FlColors.muted),
               ),
               const Gap(14),
@@ -233,12 +241,19 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
               const Gap(14),
               Text(
                 stats.notAudited == 0
-                    ? 'Đã kiểm kê hết danh mục ${stats.periodLabel.toLowerCase()}'
-                    : 'Còn ${flNumber(stats.notAudited)} tài sản cần kiểm kê',
+                    ? 'Đã đánh giá hết danh mục ${stats.periodLabel.toLowerCase()}'
+                    : 'Còn ${flNumber(stats.notAudited)} bề mặt cần đánh giá',
                 style: const TextStyle(fontSize: 12, color: FlColors.primary),
               ),
             ],
           ),
+        ),
+        const Gap(14),
+        RepairCostCard(
+          summary: ref.watch(reportRepairCostProvider),
+          subtitle:
+              'Các bề mặt đánh giá trong ${stats.periodLabel.toLowerCase()}',
+          compact: true,
         ),
         const Gap(22),
         const SectionLabel('Kết quả theo trạng thái'),
@@ -259,7 +274,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
             ),
             _MetricTile(
               count: stats.notAudited,
-              label: 'Chưa kiểm',
+              label: 'Chưa đánh giá',
               tone: FlTone.info,
             ),
           ],
@@ -297,7 +312,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 16),
             child: Text(
-              'Chưa có phiếu kiểm kê trên máy.',
+              'Chưa có phiếu đánh giá trên máy.',
               style: TextStyle(fontSize: 13, color: FlColors.muted),
             ),
           ),
@@ -335,7 +350,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                       ),
                       const Gap(3),
                       Text(
-                        '${flDate(r.timestamp ?? DateTime.now())}  ·  ${r.quantity} thiết bị',
+                        '${flDate(r.timestamp ?? DateTime.now())}  ·  ${auditAmountLabel(r)}',
                         style: const TextStyle(
                           fontSize: 12,
                           color: FlColors.muted,
@@ -437,7 +452,7 @@ class _ReportListItem extends StatelessWidget {
           ),
           const Gap(10),
           Text(
-            '${auditTitle(record)} • ${record.quantity} thiết bị',
+            '${auditTitle(record)} • ${auditAmountLabel(record)}',
             style: const TextStyle(fontSize: 12, color: FlColors.muted),
           ),
           const Gap(8),
@@ -518,7 +533,7 @@ class _ReportPaper extends ConsumerWidget {
           const Divider(),
           const Gap(20),
           const Text(
-            'BIÊN BẢN KIỂM KÊ TÀI SẢN',
+            'BIÊN BẢN KHẢO SÁT CƠ SỞ VẬT CHẤT',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
           ),
           const Gap(10),
@@ -542,7 +557,7 @@ class _ReportPaper extends ConsumerWidget {
               style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700),
             ),
             const Text(
-              'Đã kiểm kê',
+              'Đã đánh giá',
               style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700),
             ),
             const Text(

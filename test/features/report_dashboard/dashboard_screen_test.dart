@@ -193,7 +193,7 @@ void main() {
         find.text('1 phiếu chờ đồng bộ • lưu trên thiết bị'),
         findsOneWidget,
       );
-      expect(find.text('Quét thiết bị'), findsOneWidget);
+      expect(find.text('Quét bề mặt'), findsOneWidget);
     });
 
     testWidgets('Desktop dashboard lists recent audit records', (tester) async {
@@ -239,7 +239,7 @@ void main() {
       expect(mockSyncRepo.syncCalled, isTrue);
       expect(catalogRepo.syncCalls, 1);
       expect(
-        find.text('Đã đồng bộ 1 phiếu lên đám mây. Danh mục: 3 tài sản.'),
+        find.text('Đã đồng bộ 1 phiếu lên đám mây. Danh mục: 3 bề mặt.'),
         findsOneWidget,
       );
     });

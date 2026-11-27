@@ -45,8 +45,8 @@ class LocationsScreen extends ConsumerWidget {
                 ),
                 const Gap(2),
                 Text(
-                  '${workspace.shift} • ${areas.length} khu vực • '
-                  '${stats.totalAssets} tài sản • '
+                  '${workspace.shift} • ${areas.length} tòa nhà • '
+                  '${stats.totalAssets} bề mặt • '
                   'kỳ ${AuditStats.labelOf(stats.periodStart)}',
                   style: const TextStyle(fontSize: 12, color: FlColors.muted),
                 ),
@@ -65,7 +65,7 @@ class LocationsScreen extends ConsumerWidget {
 
     return WorkspacePage(
       title: 'Địa điểm',
-      subtitle: 'Khu vực và vị trí kiểm kê theo danh mục tài sản.',
+      subtitle: 'Tòa nhà và phòng theo danh mục bề mặt.',
       children: [
         overview,
         const Gap(20),
@@ -73,8 +73,8 @@ class LocationsScreen extends ConsumerWidget {
           const InfoBanner(
             icon: Icons.info_outline_rounded,
             tone: FlTone.info,
-            title: 'Chưa có khu vực nào',
-            subtitle: 'Khu vực lấy từ danh mục tài sản. Thêm tài sản kèm khu vực ở màn Tài sản.',
+            title: 'Chưa có tòa nhà nào',
+            subtitle: 'Tòa nhà lấy từ danh mục. Thêm bề mặt kèm tòa nhà ở màn Phòng & bề mặt.',
           )
         else if (desktop)
           FlGrid(columns: 2, spacing: 20, children: cards)
@@ -136,7 +136,7 @@ class _AreaCard extends StatelessWidget {
           FlProgressBar(value: p.progress),
           const Gap(8),
           Text(
-            'Đã kiểm ${p.done}/${p.planned} tài sản',
+            'Đã đánh giá ${p.done}/${p.planned} bề mặt',
             style: const TextStyle(fontSize: 12, color: FlColors.muted),
           ),
           const Gap(12),
@@ -170,7 +170,7 @@ class _AreaCard extends StatelessWidget {
                     child: Text(pos.name, style: const TextStyle(fontSize: 13)),
                   ),
                   Text(
-                    '${pos.assets} tài sản',
+                    '${pos.assets} bề mặt',
                     style: const TextStyle(fontSize: 12, color: FlColors.muted),
                   ),
                 ],
@@ -188,7 +188,7 @@ class _AreaCard extends StatelessWidget {
           const Align(
             alignment: Alignment.centerRight,
             child: Text(
-              'Xem tài sản  ›',
+              'Xem bề mặt  ›',
               style: TextStyle(
                 fontSize: 12,
                 color: FlColors.primary,

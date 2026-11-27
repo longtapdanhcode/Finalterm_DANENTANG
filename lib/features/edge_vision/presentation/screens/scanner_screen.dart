@@ -8,10 +8,12 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:field_inventory_edge_ai/core/theme/fieldline_theme.dart';
 import 'package:field_inventory_edge_ai/core/utils/responsive_layout.dart';
 import 'package:field_inventory_edge_ai/core/widgets/fieldline_widgets.dart';
+import 'package:field_inventory_edge_ai/features/damage_assessment/domain/damage_measurer.dart';
 
 import '../../domain/entities/scan_result.dart';
 import '../controllers/scanner_controller.dart';
 import '../widgets/ai_diagnostics_panel.dart';
+import '../widgets/measurement_card.dart';
 import '../widgets/scanner_overlay.dart';
 
 /// Nhãn AI đã tách phần trăm độ tin cậy, ví dụ "Động cơ điện (96.8%)".
@@ -48,7 +50,11 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
   bool _aiMode = true;
 
   /// Điều hướng sang màn hình Biểu mẫu kiểm kê với cơ chế debounce
-  void _navigateToAuditForm(String scanCode, String? aiLabel) {
+  void _navigateToAuditForm(
+    String scanCode,
+    String? aiLabel, {
+    FrameMeasurement? measurement,
+  }) {
     final now = DateTime.now();
     if (_isNavigating) return;
     if (_lastNavigationTime != null &&
@@ -60,7 +66,14 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
     _lastNavigationTime = now;
 
     context
-        .push('/audit-form', extra: {'scanCode': scanCode, 'aiLabel': aiLabel})
+        .push(
+          '/audit-form',
+          extra: {
+            'scanCode': scanCode,
+            'aiLabel': aiLabel,
+            'measurement': ?measurement,
+          },
+        )
         .then((_) {
           _isNavigating = false;
           if (mounted) {
@@ -74,13 +87,26 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
     final result = uiState.latestResult;
     final guess = _AiGuess.parse(uiState.detectedObjects);
     if (result == null && guess == null) {
-      showFlSnack(context, 'Chưa có kết quả. Đưa mã hoặc thiết bị vào khung.');
+      showFlSnack(
+        context,
+        'Chưa có kết quả. Đưa thẻ QR và vùng hư hỏng vào khung.',
+      );
       return;
     }
     final code = result == null
         ? ''
         : (result.rawValue.isNotEmpty ? result.rawValue : result.displayValue);
-    _navigateToAuditForm(code, guess?.label);
+    _navigateToAuditForm(
+      code,
+      guess?.label,
+      // Không có thẻ QR (hoặc chưa đo xong): vẫn mang theo loại hư hỏng AI
+      // vừa thấy, số đo để kiểm tra viên nhập.
+      measurement:
+          (result == null ? null : uiState.measurement) ??
+          ref
+              .read(scannerControllerProvider.notifier)
+              .measurementWithoutMarker(),
+    );
   }
 
   /// Nhập mã tài sản bằng tay khi không quét được.
@@ -209,7 +235,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
           ),
           const Gap(14),
           const Text(
-            'Đặt thiết bị trong khung, giữ máy ổn định và đủ ánh sáng.',
+            'Chụp thẳng góc, thẻ QR và vùng hư hỏng cùng nằm trong khung, đủ ánh sáng.',
             style: TextStyle(fontSize: 12, color: FlColors.muted),
           ),
         ],
@@ -236,7 +262,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
             onPressed: _enterCodeManually,
             child: const Align(
               alignment: Alignment.centerLeft,
-              child: Text('Chọn loại thiết bị khác'),
+              child: Text('Nhập mã bề mặt thủ công'),
             ),
           ),
           const Gap(14),
@@ -253,7 +279,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
     return DesktopPage(
       heading: DesktopPageHeading(
         title: 'Quét mã & nhận diện AI',
-        subtitle: 'Nhận diện thiết bị tại hiện trường và xác nhận trước khi ghi vào phiếu.',
+        subtitle: 'Quét thẻ QR trên bề mặt, AI đo hư hỏng; xác nhận trước khi ghi vào phiếu.',
         action: FilledButton.icon(
           onPressed: _enterCodeManually,
           icon: const Icon(Icons.add_rounded, size: 18),
@@ -267,6 +293,13 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               resultCard,
+              if (_showMeasurement(uiState)) ...[
+                const Gap(16),
+                MeasurementCard(
+                  measurement: uiState.measurement,
+                  isMeasuring: uiState.isMeasuring,
+                ),
+              ],
               const Gap(16),
               AiDiagnosticsPanel(diagnostics: uiState.ai),
               const Gap(16),
@@ -308,7 +341,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
         ],
       ),
       bottomAction: MobilePrimaryButton(
-        label: 'Dùng tài sản này',
+        label: 'Lập phiếu đánh giá',
         onPressed: hasResult || guess != null
             ? () => _confirmResult(uiState)
             : null,
@@ -317,11 +350,24 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
         SizedBox(height: 318, child: camera),
         const Gap(18),
         _MobileResultCard(uiState: uiState, guess: guess),
+        if (_showMeasurement(uiState)) ...[
+          const Gap(14),
+          MeasurementCard(
+            measurement: uiState.measurement,
+            isMeasuring: uiState.isMeasuring,
+          ),
+        ],
         const Gap(14),
         AiDiagnosticsPanel(diagnostics: uiState.ai),
       ],
     );
   }
+
+  /// Thẻ đo chỉ hiện sau khi quét được mã (thẻ QR là thước đo).
+  bool _showMeasurement(ScannerUiState s) =>
+      s.status == ScannerStatus.success &&
+      s.latestResult != null &&
+      (s.isMeasuring || s.measurement != null);
 
   void _copyCode(String code) {
     Clipboard.setData(ClipboardData(text: code));
@@ -469,7 +515,7 @@ class _CameraBox extends ConsumerWidget {
           ScannerStatus.permissionDenied => _CameraMessage(
             icon: Icons.no_photography_outlined,
             title: 'Cần quyền truy cập Camera',
-            message: uiState.errorMessage ?? 'Vui lòng cấp quyền camera để tiến hành quét mã kiểm kê hiện trường.',
+            message: uiState.errorMessage ?? 'Vui lòng cấp quyền camera để tiến hành quét mã khảo sát hiện trường.',
             actionLabel: 'Cấp quyền Camera',
             onAction: notifier.requestPermission,
           ),
@@ -591,7 +637,9 @@ class _CameraBox extends ConsumerWidget {
                               children: [
                                 Expanded(
                                   child: Text(
-                                    aiMode ? 'Đưa mã hoặc thiết bị vào khung' : 'Căn chỉnh mã QR / mã vạch trong khung',
+                                    aiMode
+                                        ? 'Đưa thẻ QR và vùng hư hỏng vào khung'
+                                        : 'Căn chỉnh mã QR / mã vạch trong khung',
                                     style: const TextStyle(
                                       color: Color(0xFFD5E6E6),
                                       fontSize: 12,
@@ -824,7 +872,7 @@ class _ResultPanel extends StatelessWidget {
         children: [
           const CardHeader(
             title: 'Kết quả nhận diện',
-            subtitle: 'Kết quả gợi ý cần được kiểm kê viên xác nhận',
+            subtitle: 'Kết quả gợi ý cần được kiểm tra viên xác nhận',
           ),
           const Gap(14),
           if (!hasAny) ...[
@@ -834,12 +882,12 @@ class _ResultPanel extends StatelessWidget {
             ),
             const Gap(12),
             const Text(
-              'Chưa phát hiện thiết bị',
+              'Chưa phát hiện hư hỏng',
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
             ),
             const Gap(8),
             const Text(
-              'Đưa mã QR, mã vạch hoặc thiết bị vào khung camera.',
+              'Đưa thẻ QR và vùng hư hỏng vào khung camera.',
               style: TextStyle(fontSize: 13, color: FlColors.muted),
             ),
           ] else ...[
@@ -948,7 +996,7 @@ class _MobileResultCard extends StatelessWidget {
         guess?.label ??
         (result != null
             ? 'Mã ${_typeLabel(result.type)}'
-            : 'Chưa phát hiện thiết bị');
+            : 'Chưa phát hiện hư hỏng');
 
     return FlCard(
       padding: const EdgeInsets.all(16),
@@ -974,7 +1022,7 @@ class _MobileResultCard extends StatelessWidget {
           Text(
             result != null
                 ? 'Mã ${result.displayValue}'
-                : 'Đưa mã hoặc thiết bị vào khung camera',
+                : 'Đưa thẻ QR và vùng hư hỏng vào khung camera',
             style: const TextStyle(fontSize: 13, color: FlColors.muted),
           ),
           const Gap(14),
@@ -982,7 +1030,7 @@ class _MobileResultCard extends StatelessWidget {
           const Gap(14),
           Text(
             result != null || guess != null
-                ? 'Sẵn sàng ghi vào phiếu kiểm kê'
+                ? 'Sẵn sàng ghi vào phiếu đánh giá'
                 : 'Đang chờ kết quả',
             style: const TextStyle(
               fontSize: 13,
@@ -1025,5 +1073,5 @@ String _cameraErrorText(MobileScannerException error) {
 String _typeLabel(ScanCodeType type) => switch (type) {
   ScanCodeType.qrCode => 'QR',
   ScanCodeType.barCode => 'vạch',
-  ScanCodeType.unknown => 'thiết bị',
+  ScanCodeType.unknown => 'mã',
 };

@@ -79,10 +79,10 @@ void main() {
   ) async {
     await pump(tester, [_conflicted()]);
 
-    expect(find.text('1 tài sản khác phiên bản'), findsOneWidget);
+    expect(find.text('1 bề mặt khác phiên bản'), findsOneWidget);
     expect(find.text('Số lượng'), findsOneWidget);
-    expect(find.text('Khu vực'), findsOneWidget);
-    expect(find.text('Tên tài sản'), findsNothing); // hai bên giống nhau
+    expect(find.text('Tòa nhà / tầng'), findsOneWidget);
+    expect(find.text('Tên bề mặt'), findsNothing); // hai bên giống nhau
 
     await tester.tap(find.text('7'));
     await tester.pump();
@@ -105,6 +105,6 @@ void main() {
 
   testWidgets('Không có xung đột thì báo đã khớp', (tester) async {
     await pump(tester, const []);
-    expect(find.text('Không còn tài sản nào cần đối chiếu'), findsOneWidget);
+    expect(find.text('Không còn bề mặt nào cần đối chiếu'), findsOneWidget);
   });
 }

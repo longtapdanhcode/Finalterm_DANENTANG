@@ -45,7 +45,7 @@ AssetModel _asset(
   String? location, {
   String status = 'good',
 }) => AssetModel(code)
-  ..name = 'Tài sản $code'
+  ..name = 'Bề mặt $code'
   ..area = area
   ..location = location
   ..status = status;
@@ -105,7 +105,7 @@ void main() {
   }
 
   group('buildAreaSummaries', () {
-    test('đếm vị trí và tài sản cần xử lý theo khu vực', () {
+    test('đếm vị trí và bề mặt cần xử lý theo khu vực', () {
       final stats = AuditStats.compute(
         assets: _assets,
         records: const [],
@@ -126,7 +126,7 @@ void main() {
     });
   });
 
-  testWidgets('Địa điểm: hiện khu vực và mở tài sản của khu vực', (
+  testWidgets('Địa điểm: hiện khu vực và mở bề mặt của khu vực', (
     tester,
   ) async {
     await pump(tester, '/locations');
@@ -135,14 +135,14 @@ void main() {
     expect(find.text('Xưởng A'), findsOneWidget);
     expect(find.text('Kho B'), findsOneWidget);
     expect(find.text('1 cần xử lý'), findsOneWidget);
-    expect(find.text('Đã kiểm 0/3 tài sản'), findsOneWidget);
+    expect(find.text('Đã đánh giá 0/3 bề mặt'), findsOneWidget);
 
     await tester.tap(find.text('Xưởng A'));
     await tester.pumpAndSettle();
     expect(find.text('assets:Xưởng A'), findsOneWidget);
   });
 
-  testWidgets('Cài đặt: đổi nơi kiểm kê và ca, lưu lại', (tester) async {
+  testWidgets('Cài đặt: đổi nơi khảo sát và ca, lưu lại', (tester) async {
     await pump(tester, '/settings');
 
     expect(find.text('an@fieldline.vn'), findsOneWidget);
@@ -152,15 +152,15 @@ void main() {
       find.widgetWithText(TextFormField, 'Kho Tân Uyên'),
       'Nhà máy Long An',
     );
-    await tester.tap(find.widgetWithText(ChoiceChip, 'Ca đêm'));
+    await tester.tap(find.widgetWithText(ChoiceChip, 'Cả ngày'));
     await tester.tap(find.widgetWithText(FilledButton, 'Lưu'));
     await tester.pumpAndSettle();
 
     expect(
       workspaceStore.saved,
-      const WorkspaceSettings(siteName: 'Nhà máy Long An', shift: 'Ca đêm'),
+      const WorkspaceSettings(siteName: 'Nhà máy Long An', shift: 'Cả ngày'),
     );
-    expect(find.text('Đã lưu nơi kiểm kê'), findsOneWidget);
+    expect(find.text('Đã lưu nơi khảo sát'), findsOneWidget);
   });
 
   testWidgets('Cài đặt: công tắc đồng bộ dùng chung thiết lập', (tester) async {
@@ -172,12 +172,12 @@ void main() {
   });
 
   test('WorkspaceSettings: JSON thiếu/sai thì dùng mặc định', () {
-    const s = WorkspaceSettings(siteName: 'Kho 1', shift: 'Ca đêm');
+    const s = WorkspaceSettings(siteName: 'Kho 1', shift: 'Cả ngày');
     expect(WorkspaceSettings.fromJson(s.toJson()), s);
     expect(
       WorkspaceSettings.fromJson(const {'site_name': ' ', 'shift': 'Ca 9'}),
       const WorkspaceSettings(),
     );
-    expect(s.summary, 'Kho 1  ·  Ca đêm');
+    expect(s.summary, 'Kho 1  ·  Cả ngày');
   });
 }

@@ -16,7 +16,7 @@ Future<void> refreshCloudData(BuildContext context, WidgetRef ref) async {
     if (context.mounted) {
       showFlSnack(
         context,
-        'Đã tải lại: ${records.length} phiếu, ${result.pulled} tài sản.',
+        'Đã tải lại: ${records.length} phiếu, ${result.pulled} bề mặt.',
         tone: FlTone.success,
       );
     }
