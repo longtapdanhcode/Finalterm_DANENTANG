@@ -786,7 +786,7 @@ class MobileDashboard extends ConsumerWidget {
                     tone: FlTone.success,
                   ),
                   _MobileStat(
-                    label: 'Đã kiểm',
+                    label: 'Đã đánh giá',
                     value: stats.auditedAssets,
                     tone: FlTone.success,
                   ),

@@ -233,7 +233,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
               ),
               const Gap(6),
               Text(
-                '${flNumber(stats.auditedAssets)} / ${flNumber(stats.totalAssets)} bề mặt đã kiểm',
+                '${flNumber(stats.auditedAssets)} / ${flNumber(stats.totalAssets)} bề mặt đã đánh giá',
                 style: const TextStyle(fontSize: 13, color: FlColors.muted),
               ),
               const Gap(14),
@@ -274,7 +274,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
             ),
             _MetricTile(
               count: stats.notAudited,
-              label: 'Chưa kiểm',
+              label: 'Chưa đánh giá',
               tone: FlTone.info,
             ),
           ],

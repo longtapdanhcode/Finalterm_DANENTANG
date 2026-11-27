@@ -135,7 +135,7 @@ void main() {
     expect(find.text('Xưởng A'), findsOneWidget);
     expect(find.text('Kho B'), findsOneWidget);
     expect(find.text('1 cần xử lý'), findsOneWidget);
-    expect(find.text('Đã kiểm 0/3 bề mặt'), findsOneWidget);
+    expect(find.text('Đã đánh giá 0/3 bề mặt'), findsOneWidget);
 
     await tester.tap(find.text('Xưởng A'));
     await tester.pumpAndSettle();

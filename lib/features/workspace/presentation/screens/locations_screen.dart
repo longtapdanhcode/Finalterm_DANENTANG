@@ -136,7 +136,7 @@ class _AreaCard extends StatelessWidget {
           FlProgressBar(value: p.progress),
           const Gap(8),
           Text(
-            'Đã kiểm ${p.done}/${p.planned} bề mặt',
+            'Đã đánh giá ${p.done}/${p.planned} bề mặt',
             style: const TextStyle(fontSize: 12, color: FlColors.muted),
           ),
           const Gap(12),
